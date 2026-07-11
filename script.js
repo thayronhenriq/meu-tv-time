@@ -1,4 +1,4 @@
-// ================= FIREBASE E LOGIN =================
+/// ================= FIREBASE E LOGIN (COM BANCO DE DADOS) =================
 const firebaseConfig = {
     apiKey: "AIzaSyAlkfKtC4MdvFJ8QSWvoZehTEjwD1pDeC8",
     authDomain: "meutvtime-79607.firebaseapp.com",
@@ -15,24 +15,51 @@ const db = firebase.firestore();
 
 let usuarioLogado = null;
 
-// Observador: Fica vigiando para ver se a pessoa logou ou deslogou
+// Observador: Fica vigiando o login
 auth.onAuthStateChanged(user => {
     if (user) {
         usuarioLogado = user;
         document.getElementById('tela-login').style.display = 'none'; // Esconde o login
         
-        // Atualiza o nome e foto do perfil com os dados do Google
+        // Atualiza o nome e foto
         const nomePerfil = document.querySelector('.perfil-texto h2');
         const fotoPerfil = document.getElementById('meu-avatar-perfil');
         if (nomePerfil) nomePerfil.innerText = user.displayName;
         if (fotoPerfil && !meuPerfil.avatar) fotoPerfil.style.backgroundImage = `url('${user.photoURL}')`;
         
+        // -----------------------------------------------------------------
+        // A MÁGICA: Puxa os dados EXCLUSIVOS deste e-mail da Nuvem
+        // -----------------------------------------------------------------
+        db.collection('usuarios').doc(user.uid).get().then(doc => {
+            if (doc.exists) {
+                const dados = doc.data();
+                minhasSeries = dados.series || [];
+                meusFilmes = dados.filmes || [];
+            } else {
+                // Se a conta for nova, começa com tudo zerado
+                minhasSeries = [];
+                meusFilmes = [];
+            }
+            
+            // Salva na memória temporária só para a tela funcionar rápido
+            localStorage.setItem('series', JSON.stringify(minhasSeries));
+            localStorage.setItem('filmes', JSON.stringify(meusFilmes));
+            
+            // Recarrega a página de forma invisível para as séries aparecerem
+            if (!sessionStorage.getItem('dadosCarregados')) {
+                sessionStorage.setItem('dadosCarregados', 'true');
+                window.location.reload();
+            }
+        });
+        
     } else {
         usuarioLogado = null;
         document.getElementById('tela-login').style.display = 'flex'; // Mostra o login
+        sessionStorage.removeItem('dadosCarregados');
     }
 });
 
+// Entrar
 window.fazerLoginGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider).catch(error => {
@@ -40,12 +67,37 @@ window.fazerLoginGoogle = function() {
     });
 };
 
-
-
-
-
+// Sair e Limpar a Memória
 window.fazerLogout = function() {
-    auth.signOut();
+    auth.signOut().then(() => {
+        // Apaga os dados fantasmas do celular quando o usuário sai
+        localStorage.removeItem('series');
+        localStorage.removeItem('filmes');
+        window.location.reload();
+    });
+};
+
+// -----------------------------------------------------------------
+// SUBSTITUINDO AS FUNÇÕES DE SALVAR (Agora salvam na nuvem)
+// -----------------------------------------------------------------
+window.salvarSeries = function() {
+    localStorage.setItem('series', JSON.stringify(minhasSeries));
+    if (usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({
+            series: minhasSeries,
+            filmes: meusFilmes
+        }, { merge: true });
+    }
+};
+
+window.salvarFilmes = function() {
+    localStorage.setItem('filmes', JSON.stringify(meusFilmes));
+    if (usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({
+            series: minhasSeries,
+            filmes: meusFilmes
+        }, { merge: true });
+    }
 };
 
 // ================= 1. DADOS E MEMÓRIA =================
