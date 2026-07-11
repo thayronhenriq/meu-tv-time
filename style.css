@@ -1,0 +1,639 @@
+/* Zerando margens padrão e definindo a fonte */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: #000000; /* Fundo preto profundo */
+    color: #ffffff; /* Texto branco */
+    padding-bottom: 70px; /* Espaço para o menu inferior não cobrir o conteúdo */
+}
+
+/* Abas Superiores (Minha Lista / Em Breve) */
+.top-tabs {
+    display: flex;
+    justify-content: space-around;
+    background-color: #0a0a0a;
+    padding: 15px 0 0 0;
+    border-bottom: 1px solid #222;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 14px;
+    font-weight: bold;
+    padding-bottom: 10px;
+    width: 50%;
+}
+
+.tab-btn.active {
+    color: #ffffff;
+    border-bottom: 3px solid #ffffff; /* Linha branca sob a aba ativa */
+}
+
+/* Botão estilo "Pílula" (Assistir a seguir) */
+.btn-pill {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Layout do Cartão da Série */
+.serie-card {
+    display: flex;
+    align-items: center;
+    background-color: #0a0a0a;
+    margin: 5px 10px 10px 10px;
+    border-radius: 8px;
+    overflow: hidden; /* Corta o que sobrar das bordas arredondadas */
+}
+
+/* Espaço da Imagem */
+.img-container {
+    width: 75px;
+    height: 110px;
+    flex-shrink: 0; /* Impede a imagem de encolher */
+}
+
+.img-placeholder {
+    width: 100%;
+    height: 100%;
+    /* Aqui depois podemos colocar imagens reais com background-image */
+}
+
+/* Informações da Série (Centro) */
+.serie-info {
+    flex-grow: 1;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.serie-tag {
+    display: inline-block;
+    border: 1px solid #fff;
+    border-radius: 15px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    width: max-content;
+}
+
+.serie-ep-info {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.serie-ep-title {
+    font-size: 14px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Coloca "..." se o título for longo */
+    max-width: 180px;
+}
+
+/* Botão de Check (Direita) */
+.serie-action {
+    padding: 0 15px;
+}
+
+.check-btn {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    color: #000000;
+    border: none;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Menu Inferior Fixo */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #0a0a0a;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #222;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #666;
+    font-size: 10px;
+}
+
+.nav-item.active {
+    color: #ffffff;
+}
+
+.nav-item .icon {
+    font-size: 20px;
+    margin-bottom: 3px;
+}
+/* ================= NOVOS ESTILOS DO PERFIL ================= */
+
+/* Classe mágica para esconder abas */
+.escondido {
+    display: none !important;
+}
+
+/* Header do Perfil */
+.perfil-header {
+    position: relative;
+    border-bottom: 1px solid #222;
+    padding-bottom: 15px;
+}
+
+.perfil-banner {
+    height: 180px;
+    background-color: #333;
+    background-size: cover;
+    background-position: top;
+    opacity: 0.8; /* Deixa a imagem um pouco mais escura */
+}
+
+.perfil-info {
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    margin-top: -40px; /* Faz a foto subir em cima do banner */
+    position: relative;
+    z-index: 2;
+}
+
+.perfil-avatar {
+    position: relative;
+    margin-right: 15px;
+}
+
+.avatar-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid #000; /* Borda preta em volta da foto */
+    background-color: #555;
+}
+
+/* O selinho amarelo com o T */
+.badge-t {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background-color: #ffcc00;
+    color: #000;
+    font-size: 12px;
+    font-weight: bold;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #000;
+}
+
+.perfil-texto h2 {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.btn-editar {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #fff;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Seguidores e Social */
+.perfil-social-stats {
+    display: flex;
+    border-bottom: 1px solid #222;
+}
+
+.social-stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px 0;
+    border-right: 1px solid #222;
+}
+
+.social-stat:last-child {
+    border-right: none;
+}
+
+.social-stat strong { font-size: 18px; }
+.social-stat span { font-size: 12px; color: #aaa; margin-top: 3px; }
+
+/* Seção de Estatísticas (As caixas) */
+.perfil-secao { padding: 20px 15px; }
+
+.secao-titulo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.estatisticas-grid { display: flex; gap: 10px; }
+/* ================= ESTATÍSTICAS (Estilo TV Time Original) ================= */
+.stat-box {
+    flex: 1;
+    border: 1px solid #333; /* Borda cinza escura */
+    border-radius: 8px;
+    background-color: #000; /* Fundo totalmente preto */
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-box-title {
+    font-size: 14px;
+    color: #fff;
+    padding: 10px 12px;
+    border-bottom: 1px solid #333;
+    margin-bottom: 0;
+    font-weight: normal;
+}
+
+.stat-box-values {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-grow: 1;
+    padding: 15px 5px;
+}
+
+/* O Segredo: Faz o número ficar em cima e o texto embaixo */
+.stat-box-values div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-box-values strong {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.stat-box-values span {
+    font-size: 10px;
+    color: #fff;
+    margin-top: 5px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Centraliza o número de Episódios perfeitamente no meio da caixa */
+.single-val {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    height: 100%;
+}
+
+.single-val strong {
+    font-size: 28px; /* Destaque maior para o total de episódios */
+}
+
+/* ================= CARROSSÉIS DE PÔSTERES ================= */
+
+.carrossel-posters {
+    display: flex;
+    overflow-x: auto; /* Permite rolar para os lados */
+    gap: 12px;
+    padding-bottom: 10px; /* Espaço para não cortar a sombra/borda */
+    scrollbar-width: none; /* Esconde a barra de rolagem no Firefox */
+}
+
+/* Esconde a barra de rolagem em navegadores baseados no Chrome/Safari */
+.carrossel-posters::-webkit-scrollbar {
+    display: none;
+}
+
+.poster-item {
+    min-width: 100px; /* Largura do pôster de série/filme */
+    height: 150px;
+    border-radius: 6px;
+    background-color: #111;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0; /* Impede que o pôster seja esmagado */
+}
+
+.poster-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Faz a imagem preencher todo o espaço sem distorcer */
+}
+
+/* Pôsteres mais largos (Para a seção de 'Listas') */
+.poster-item.wide {
+    min-width: 160px;
+    height: 120px;
+}
+
+.poster-label {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    z-index: 2;
+}
+
+/* Escurece um pouco a imagem para o texto da lista ficar legível */
+.poster-item.wide::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+/* ================= TELA DE EXPLORAR ================= */
+.busca-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-top: 10px;
+}
+
+#input-busca {
+    flex: 1;
+    padding: 12px 15px;
+    border-radius: 20px;
+    border: none;
+    background-color: #222;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+}
+
+#input-busca::placeholder {
+    color: #888;
+}
+
+#btn-buscar {
+    background-color: #ffcc00;
+    color: #000;
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resultados-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.resultado-item {
+    width: calc(50% - 5px); /* Cria duas colunas perfeitas */
+    margin-bottom: 15px;
+    background-color: #111;
+    border-radius: 8px;
+    padding-bottom: 5px;
+    overflow: hidden;
+}
+
+.resultado-item img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+}
+
+.resultado-titulo {
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 8px;
+    text-align: center;
+    padding: 0 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Botão de Adicionar na Busca */
+.btn-add-lista {
+    width: 100%;
+    padding: 8px 0;
+    background-color: #333;
+    color: #ffcc00; /* Texto amarelo estilo TV Time */
+    border: none;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+    border-top: 1px solid #111;
+}
+
+.btn-add-lista:active {
+    background-color: #555;
+}
+/* ================= ABA DE EPISÓDIOS E TEMPORADAS ================= */
+.season-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    background-color: #111; 
+    padding: 12px 15px; 
+    margin-top: 10px; 
+    border-radius: 5px; 
+    border-left: 3px solid #78b833; /* Detalhe verde do TV Time */
+}
+
+.ep-card {
+    display: flex; 
+    align-items: center; 
+    padding: 10px 5px;
+    border-bottom: 1px solid #222; 
+    background-color: #000;
+}
+
+.ep-img {
+    width: 90px; 
+    height: 60px; 
+    border-radius: 4px; 
+    object-fit: cover; 
+    margin-right: 15px; 
+    flex-shrink: 0;
+}
+
+.ep-info { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+}
+
+/* Botão de Check Padrão (Branco) */
+.ep-check {
+    width: 30px; 
+    height: 30px; 
+    border-radius: 50%; 
+    border: none; 
+    font-weight: bold;
+    background-color: #fff; 
+    color: #000; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+}
+
+/* Botão de Check Ativo (Verde) - Vai ativar quando você clicar */
+.ep-check.visto {
+    background-color: #78b833; 
+    color: #fff;
+}
+/* Cor verde para o botão da temporada quando clicado */
+.check-btn.visto {
+    background-color: #78b833;
+    color: #fff;
+    border: none;
+}
+/* ================= BOTÃO DE FAVORITO ================= */
+.btn-favorito {
+    background: transparent;
+    border: 1px solid #555;
+    color: #555;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-favorito.ativo {
+    color: #e74c3c; /* Coração vermelho */
+    border-color: #e74c3c;
+    background-color: rgba(231, 76, 60, 0.1);
+}
+/* ================= LISTAS PERSONALIZADAS ================= */
+.btn-escolher-lista {
+    width: 100%;
+    text-align: left;
+    padding: 15px;
+    background: #222;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: bold;
+}
+.btn-escolher-lista:active { background: #444; }
+
+/* Botão de adicionar à lista ao lado do coração */
+.btn-add-to-list-icon {
+    background: transparent;
+    border: 1px solid #555;
+    color: #555;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: 0.3s;
+}
+.btn-add-to-list-icon:active { background-color: #333; }
+/* ================= TELA DE TODAS AS SÉRIES E FILTROS ================= */
+
+/* Botões pílula de ordenação */
+.btn-sort {
+    background: #333;
+    color: #ccc;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.btn-sort.active {
+    background: #ffcc00;
+    color: #000;
+    font-weight: bold;
+}
+
+/* Linhas de filtro (Progress) */
+.filter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #222;
+    color: #ddd;
+    font-size: 15px;
+    cursor: pointer;
+}
+.filter-row:last-child {
+    border-bottom: none;
+}
+
+/* Bolinhas de rádio idênticas ao TV Time */
+.radio-btn {
+    width: 22px; 
+    height: 22px; 
+    border-radius: 50%; 
+    border: 2px solid #555; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: transparent; 
+    font-size: 12px;
+    transition: 0.2s;
+}
+.radio-btn.ativo {
+    background: #ffcc00; 
+    border-color: #ffcc00; 
+    color: #000;
+    font-weight: bold;
+}

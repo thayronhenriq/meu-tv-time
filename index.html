@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <!-- É ESTA LINHA ABAIXO QUE FAZ A MÁGICA DO TAMANHO MOBILE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Meu TV Time</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- ================= TELA DE LOGIN ================= -->
+    <div id="tela-login" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#0a0a0a; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <h1 style="color:#ffcc00; margin-bottom: 10px; font-size: 32px;">Meu TV Time</h1>
+        <p style="color:#888; margin-bottom: 40px; font-size: 14px;">Sincronize suas séries na nuvem</p>
+        
+        <button onclick="fazerLoginGoogle()" style="background:#fff; color:#000; padding:12px 24px; border-radius:30px; font-weight:bold; font-size:16px; border:none; display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <!-- Link da imagem atualizado -->
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;">
+            Entrar com o Google
+        </button>
+
+    </div>
+
+    <!-- ================= TELA 1: SÉRIES ================= -->
+    <main id="tela-series">
+        <header class="top-tabs">
+            <button class="tab-btn active">MINHA LISTA</button>
+            <button class="tab-btn">EM BREVE</button>
+        </header>
+        <div id="lista-series"></div>
+    </main>
+
+    <!-- ================= TELA 2: FILMES (NOVA) ================= -->
+    <main id="tela-filmes" class="escondido">
+        <header class="top-tabs">
+            <button class="tab-btn active" style="width:100%;">MEUS FILMES</button>
+        </header>
+        <div id="lista-filmes"></div>
+    </main>
+
+    <!-- ================= TELA 3: EXPLORAR ================= -->
+    <main id="tela-explorar" class="escondido" style="padding: 15px;">
+        <!-- Seletor de busca (Séries ou Filmes) -->
+        <div style="display:flex; margin-bottom:15px; border-bottom:1px solid #222;">
+            <button id="btn-busca-tv" class="tab-btn active" onclick="mudarModoBusca('tv')" style="width:50%;">SÉRIES</button>
+            <button id="btn-busca-movie" class="tab-btn" onclick="mudarModoBusca('movie')" style="width:50%;">FILMES</button>
+        </div>
+
+        <div class="busca-container">
+            <input type="text" id="input-busca" placeholder="Buscar...">
+            <button id="btn-buscar">🔍</button>
+        </div>
+        <div id="resultados-busca" class="resultados-grid">
+            <p style="text-align: center; color: #888; margin-top: 20px; width: 100%;">Selecione a categoria e digite um nome.</p>
+        </div>
+    </main>
+
+    <!-- ================= TELA 4: PERFIL ================= -->
+    <main id="tela-perfil" class="escondido">
+        <!-- Cabeçalho do Perfil (Atualizado) -->
+        <div class="perfil-header">
+            <div id="meu-banner-perfil" class="perfil-banner" style="background-color: #333; background-position: center 20%; background-size: cover;"></div>
+            <div class="perfil-info">
+                <div class="perfil-avatar">
+                    <div id="meu-avatar-perfil" class="avatar-placeholder" style="background-position: center; background-size: cover;"></div>
+                    <span class="badge-t">T</span>
+                </div>
+               <div class="perfil-texto">
+    <h2>thayronhenriq</h2>
+    <button class="btn-editar" onclick="abrirModalEditarPerfil()">EDITAR</button>
+    
+    <!-- Botão de Sair da Conta -->
+    <button onclick="fazerLogout()" style="background:transparent; color:#c0392b; border:none; margin-top:5px; font-weight:bold; font-size:12px;">Sair da conta</button>
+</div>
+
+            </div>
+        </div>
+
+
+
+
+
+        <!-- Estatísticas Clicáveis -->
+        <div class="perfil-secao" onclick="abrirEstatisticas()" style="cursor: pointer;">
+            <div class="secao-titulo">
+                <h3>Estatísticas</h3> <span>&gt;</span>
+            </div>
+            <div class="estatisticas-grid">
+                <div class="stat-box">
+                    <div class="stat-box-title">📺 Tempo vendo TV</div>
+                    <div class="stat-box-values">
+                        <div><strong id="stat-meses">0</strong><span>MESES</span></div>
+                        <div><strong id="stat-dias">0</strong><span>DIAS</span></div>
+                        <div><strong id="stat-horas">0</strong><span>HORAS</span></div>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-title">📺 Episódios assist...</div>
+                    <div class="stat-box-values single-val">
+                        <strong id="stat-total-eps">0</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Seção de Importação de Dados do TV Time -->
+        <div class="perfil-secao">
+            <div class="secao-titulo">
+                <h3>Importar Dados</h3> <span>&gt;</span>
+            </div>
+            <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center;">
+                <p style="font-size: 12px; color: #aaa; margin-bottom: 15px;">Selecione o arquivo CSV exportado pelo TV Time para sincronizar suas séries.</p>
+                
+                <!-- Botão de Upload de Arquivo -->
+                <input type="file" id="input-csv-tvtime" accept=".csv" style="display: none;">
+                <label for="input-csv-tvtime" style="background-color: #ffcc00; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: inline-block;">
+                    📁 Escolher Arquivo .CSV
+                </label>
+            </div>
+        </div>
+
+        <!-- Listas (Dinâmico) -->
+        <div class="perfil-secao">
+            <div class="secao-titulo">
+                <h3>Listas</h3> 
+                <button onclick="abrirModalCriarLista()" style="background:transparent; color:#ffcc00; border:1px solid #ffcc00; border-radius:15px; padding:4px 10px; font-size:10px; font-weight:bold;">+ NOVA LISTA</button>
+            </div>
+            <div class="carrossel-posters" id="perfil-listas-carrossel">
+                <!-- O JS vai injetar as listas criadas aqui -->
+            </div>
+        </div>
+
+        <!-- Séries (Dinâmico - O JS injeta aqui) -->
+        <div class="perfil-secao">
+            <div class="secao-titulo" onclick="abrirTodasAsSeriesPerfil()" style="cursor: pointer;">
+                <h3>Séries</h3> <span>&gt;</span>
+            </div>
+            <div class="carrossel-posters" id="perfil-series-carrossel"></div>
+        </div>
+
+
+        <!-- Séries Favoritas (Dinâmico) -->
+        <div class="perfil-secao">
+            <div class="secao-titulo" onclick="abrirGradePerfil('seriesFav')" style="cursor: pointer;">
+                <h3>❤️ Séries favoritas</h3> <span>&gt;</span>
+            </div>
+            <div class="carrossel-posters" id="perfil-series-favoritas-carrossel"></div>
+        </div>
+
+        <!-- Filmes (Dinâmico) -->
+        <div class="perfil-secao">
+            <div class="secao-titulo" onclick="abrirGradePerfil('filmes')" style="cursor: pointer;">
+                <h3>Filmes</h3> <span>&gt;</span>
+            </div>
+            <div class="carrossel-posters" id="perfil-filmes-carrossel"></div>
+        </div>
+
+        <!-- Filmes Favoritos (Dinâmico) -->
+        <div class="perfil-secao">
+            <div class="secao-titulo" onclick="abrirGradePerfil('filmesFav')" style="cursor: pointer;">
+                <h3>❤️ Filmes favoritos</h3> <span>&gt;</span>
+            </div>
+            <div class="carrossel-posters" id="perfil-filmes-favoritos-carrossel"></div>
+        </div>
+
+    </main>
+
+
+    <!-- MENU INFERIOR -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-target="tela-series">
+            <span class="icon">📺</span>
+            <span>Séries</span>
+        </div>
+        <div class="nav-item" data-target="tela-filmes">
+            <span class="icon">🎬</span>
+            <span>Filmes</span>
+        </div>
+        <div class="nav-item" data-target="tela-explorar">
+            <span class="icon">🔍</span>
+            <span>Explorar</span>
+        </div>
+        <div class="nav-item" data-target="tela-perfil">
+            <span class="icon">👤</span>
+            <span>Perfil</span>
+        </div>
+    </nav>
+
+    <!-- ================= TELA DE DETALHES (Séries e Filmes) ================= -->
+        <div id="tela-detalhes" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:3000; overflow-y:auto;">
+
+        <button onclick="fecharDetalhes()" style="position:absolute; top:15px; left:15px; background:rgba(0,0,0,0.5); color:#fff; border:none; font-size:24px; z-index:1001; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">←</button>
+        <div id="conteudo-detalhes"></div>
+    </div>
+
+    <!-- ================= TELA DE ESTATÍSTICAS DETALHADAS ================= -->
+    <div id="tela-estatisticas" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1000; overflow-y:auto;">
+        <div style="display:flex; align-items:center; padding:15px; border-bottom:1px solid #222;">
+            <button onclick="fecharEstatisticas()" style="background:transparent; color:#fff; border:none; font-size:24px; margin-right:15px;">←</button>
+            <h2 style="font-size:18px;">Estatísticas</h2>
+        </div>
+        <div style="padding:15px;">
+            <div style="margin-bottom:25px; border-bottom:1px solid #222; padding-bottom:15px;">
+                <h3 style="font-size:14px; color:#ccc; margin-bottom:10px;">Total de episódios assistidos</h3>
+                <strong id="det-total-eps" style="font-size:28px; display:block;">0</strong>
+                <span style="font-size:10px; color:#888;">EPISÓDIOS VISTOS</span>
+            </div>
+            <div style="margin-bottom:25px; border-bottom:1px solid #222; padding-bottom:15px;">
+                <h3 style="font-size:14px; color:#ccc; margin-bottom:10px;">Séries adicionadas</h3>
+                <strong id="det-total-series" style="font-size:28px; display:block;">0</strong>
+                <span style="font-size:10px; color:#888;">NA SUA LISTA</span>
+            </div>
+             <div style="margin-bottom:25px; border-bottom:1px solid #222; padding-bottom:15px;">
+                <h3 style="font-size:14px; color:#ccc; margin-bottom:10px;">Filmes adicionados</h3>
+                <strong id="det-total-filmes" style="font-size:28px; display:block;">0</strong>
+                <span style="font-size:10px; color:#888;">NA SUA LISTA</span>
+            </div>
+        </div>
+    </div>
+    <!-- ================= MODAIS DE LISTAS PERSONALIZADAS ================= -->
+    
+    <!-- Modal Criar Nova Lista -->
+    <div id="modal-criar-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333;">
+            <h3 style="margin-bottom:15px; color:#fff;">Nova Lista</h3>
+            <input type="text" id="input-nome-lista" placeholder="Nome da lista (Ex: Para chorar)" style="width:100%; padding:12px; margin-bottom:15px; background:#222; color:#fff; border:none; border-radius:5px; outline:none;">
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button onclick="fecharModalCriarLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Cancelar</button>
+                <button onclick="salvarNovaLista()" style="background:#ffcc00; color:#000; border:none; padding:10px 15px; border-radius:5px; font-weight:bold;">Criar Lista</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Adicionar Série/Filme na Lista -->
+    <div id="modal-add-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333; max-height:80%; overflow-y:auto;">
+            <h3 style="margin-bottom:15px; color:#fff;">Adicionar à Lista</h3>
+            <div id="opcoes-listas-add">
+                <!-- O JavaScript vai colocar os botões com os nomes das suas listas aqui -->
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:15px;">
+                <button onclick="fecharModalAddLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela Inteira para Ver o Conteúdo de uma Lista -->
+    <div id="tela-ver-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1500; overflow-y:auto;">
+        <div style="display:flex; align-items:center; padding:15px; border-bottom:1px solid #222;">
+            <button onclick="fecharTelaVerLista()" style="background:transparent; color:#fff; border:none; font-size:24px; margin-right:15px;">←</button>
+            <h2 id="titulo-ver-lista" style="font-size:18px;">Minha Lista</h2>
+        </div>
+        <div id="conteudo-ver-lista" class="resultados-grid" style="padding:15px;">
+            <!-- Os pôsteres das séries que estão dentro da lista vão aparecer aqui -->
+        </div>
+    </div>
+    <!-- ================= TELA: TODAS AS SÉRIES DO PERFIL ================= -->
+    <div id="tela-todas-series" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:3500; overflow-y:auto; padding-bottom: 80px;">
+        <!-- Cabeçalho Fixo -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:15px; border-bottom:1px solid #222; position: sticky; top: 0; background: #000; z-index: 10;">
+            <button onclick="fecharTodasAsSeriesPerfil()" style="background:transparent; color:#fff; border:none; font-size:24px;">←</button>
+            <h2 style="font-size:18px;">Séries</h2>
+            <span style="font-size:20px; color:#888;">👁️</span>
+        </div>
+        
+        <!-- Grade de Pôsteres (3 Colunas) -->
+        <div id="grid-todas-series" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px;">
+            <!-- O JavaScript vai injetar os pôsteres aqui -->
+        </div>
+
+        <!-- Botão Flutuante de Filtros -->
+        <button onclick="abrirFiltrosSeries()" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #ffcc00; color: #000; border: none; padding: 12px 25px; border-radius: 25px; font-weight: bold; font-size: 14px; z-index: 3510; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.8);">
+            <span style="font-size: 16px;">☕</span> FILTROS
+        </button>
+    </div>
+
+    <!-- ================= MODAL: FILTROS DE SÉRIES ================= -->
+    <div id="modal-filtros-series" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:4000; display:flex; align-items:flex-end; justify-content:center;">
+        <div style="background:#1a1a1a; width:100%; border-top-left-radius: 15px; border-top-right-radius: 15px; padding: 20px; padding-bottom: 30px; max-height: 85vh; overflow-y: auto;">
+            
+            <h3 style="font-size: 16px; margin-bottom: 15px;">Ordenar por</h3>
+            <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none;" id="container-sort-btns">
+                <button class="btn-sort active" onclick="selecionarSort('assistidos')">Últimos assistidos</button>
+                <button class="btn-sort" onclick="selecionarSort('adicionados')">Últimos adicionados</button>
+                <button class="btn-sort" onclick="selecionarSort('alfabetica')">Alfabética</button>
+            </div>
+
+            <h3 style="font-size: 16px; margin-top: 25px; margin-bottom: 15px;">Progress</h3>
+            <div>
+                <div class="filter-row" onclick="selecionarFilter('tudo')">
+                    <span>Tudo</span> <div class="radio-btn ativo" id="radio-tudo">✓</div>
+                </div>
+                <div class="filter-row" onclick="selecionarFilter('assistindo')">
+                    <span>Assistindo</span> <div class="radio-btn" id="radio-assistindo">✓</div>
+                </div>
+                <div class="filter-row" onclick="selecionarFilter('naocomecei')">
+                    <span>Não comecei</span> <div class="radio-btn" id="radio-naocomecei">✓</div>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="display: flex; gap: 10px; margin-top: 30px;">
+                <button onclick="redefinirFiltros()" style="flex: 1; background: transparent; color: #888; border: 1px solid #444; padding: 15px; border-radius: 30px; font-weight: bold; font-size: 12px;">REDEFINIR</button>
+                <button onclick="aplicarFiltros()" style="flex: 1; background: #ffcc00; color: #000; border: none; padding: 15px; border-radius: 30px; font-weight: bold; font-size: 12px;">APLICAR</button>
+            </div>
+        </div>
+    </div>
+    <!-- ================= TELA: GRADES DINÂMICAS (Filmes, Favs) ================= -->
+    <div id="tela-grade-generica" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:3500; overflow-y:auto; padding-bottom: 20px;">
+        <!-- Cabeçalho -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:15px; border-bottom:1px solid #222; position: sticky; top: 0; background: #000; z-index: 10;">
+            <button onclick="fecharGradePerfil()" style="background:transparent; color:#fff; border:none; font-size:24px;">←</button>
+            <h2 id="titulo-grade-generica" style="font-size:18px;">Título</h2>
+            <span style="font-size:20px; color:#888;">•••</span>
+        </div>
+
+        <!-- Menu da Aba de Favoritos (Botão Amarelo - Print TV Time) -->
+        <div id="menu-favoritos-tvtime" style="padding: 15px; display: none;">
+            <button onclick="fecharGradePerfil()" style="background-color: #ffcc00; color: #000; border: none; padding: 12px; width: 100%; border-radius: 25px; font-weight: bold; font-size: 11px; letter-spacing: 1px;">ADICIONAR/REMOVER</button>
+            <div style="margin-top: 15px; font-size: 10px; font-weight: bold; color: #888; text-transform: uppercase;">
+                ORDENAR POR: <span style="color: #3498db; font-weight: normal;">Ordem de usuário</span>
+            </div>
+        </div>
+
+        <!-- Grade de Pôsteres (3 Colunas) -->
+        <div id="grid-generica" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px;">
+            <!-- O JavaScript vai injetar os pôsteres aqui -->
+        </div>
+    </div>
+
+    <!-- ================= FIREBASE ================= -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <script src="script.js"></script>
+        <!-- ================= MODAL: EDITAR PERFIL ================= -->
+    <div id="modal-editar-perfil" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:4000; display:flex; align-items:center; justify-content:center;">
+        <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333; text-align:center;">
+            <h3 style="margin-bottom:20px; color:#fff;">Editar Perfil</h3>
+            <button class="btn-escolher-lista" style="text-align:center;" onclick="abrirSelecaoImagem('avatar')">Alterar Foto de Perfil</button>
+            <button class="btn-escolher-lista" style="text-align:center;" onclick="abrirSelecaoImagem('banner')">Alterar Banner</button>
+            <button onclick="fecharModalEditarPerfil()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold; margin-top:10px;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: ESCOLHER IMAGEM (BANCO DE DADOS) ================= -->
+    <div id="modal-selecionar-imagem" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:4500; overflow-y:auto;">
+        <div style="display:flex; align-items:center; padding:15px; border-bottom:1px solid #222;">
+            <button onclick="fecharSelecaoImagem()" style="background:transparent; color:#fff; border:none; font-size:24px; margin-right:15px;">←</button>
+            <h2 style="font-size:18px;">Escolha uma imagem</h2>
+        </div>
+        <div id="grid-selecao-imagens" class="resultados-grid" style="padding:15px;">
+            <!-- O JS vai injetar todas as suas séries e filmes aqui -->
+        </div>
+    </div>
+
+</body>
+</html>
