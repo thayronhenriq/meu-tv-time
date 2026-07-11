@@ -366,35 +366,81 @@ function renderizarResultadosBusca(resultados) {
         const nomeSeguro = tituloReal.replace(/'/g, "\\'");
 
         if (modoBusca === 'tv') {
+            // Verifica se a série já está adicionada
+            const jaAdicionada = minhasSeries.some(s => s.id === item.id);
+            const textoBotao = jaAdicionada ? '✓ Adicionada' : '+ Adicionar Série';
+            const estiloBotao = jaAdicionada ? 'background-color: #2ecc71; color: white;' : '';
+
             container.innerHTML += `
                 <div class="resultado-item" onclick="abrirDetalhesSerie(${item.id})">
                     ${posterHtml}
                     <div class="resultado-titulo">${tituloReal}</div>
-                    <button class="btn-add-lista" onclick="event.stopPropagation(); adicionarSerie(${item.id}, '${nomeSeguro}', '${posterPath}')">+ Adicionar Série</button>
+                    <button class="btn-add-lista" style="${estiloBotao}" onclick="event.stopPropagation(); alternarSerieBusca(${item.id}, '${nomeSeguro}', '${posterPath}', this)">${textoBotao}</button>
                 </div>`;
         } else {
+            // Verifica se o filme já está adicionado
+            const jaAdicionado = meusFilmes.some(f => f.id === item.id);
+            const textoBotao = jaAdicionado ? '✓ Adicionado' : '+ Adicionar Filme';
+            const estiloBotao = jaAdicionado ? 'background-color: #2ecc71; color: white;' : '';
+
             container.innerHTML += `
                 <div class="resultado-item" onclick="abrirDetalhesFilme(${item.id})">
                     ${posterHtml}
                     <div class="resultado-titulo">${tituloReal}</div>
-                    <button class="btn-add-lista" onclick="event.stopPropagation(); adicionarFilme(${item.id}, '${nomeSeguro}', '${posterPath}')">+ Adicionar Filme</button>
+                    <button class="btn-add-lista" style="${estiloBotao}" onclick="event.stopPropagation(); alternarFilmeBusca(${item.id}, '${nomeSeguro}', '${posterPath}', this)">${textoBotao}</button>
                 </div>`;
         }
     });
 }
 
 
-// ================= 6. ADICIONAR (SÉRIE E FILME) =================
-window.adicionarSerie = function(id, nome, posterUrl) {
-    if(minhasSeries.find(s => s.id === id)) return alert('Já está na sua lista!');
-    minhasSeries.push({ id, nome: nome.toUpperCase(), posterUrl, episodiosVistos: [], favorito: false });
-    salvarSeries(); renderizarSeries(); renderizarPerfilSeries(); atualizarEstatisticas(); alert('Série adicionada!');
+// ================= 6. ADICIONAR / REMOVER VIA BUSCA (SEM POP-UPS) =================
+window.alternarSerieBusca = function(id, nome, posterUrl, botao) {
+    const index = minhasSeries.findIndex(s => s.id === id);
+
+    if (index > -1) {
+        // Se já existe, REMOVE
+        minhasSeries.splice(index, 1);
+        botao.innerText = '+ Adicionar Série';
+        botao.style.backgroundColor = ''; // Volta pro CSS padrão (cinza/escuro)
+        botao.style.color = '';
+    } else {
+        // Se não existe, ADICIONA
+        minhasSeries.push({ id, nome: nome.toUpperCase(), posterUrl, episodiosVistos: [], favorito: false });
+        botao.innerText = '✓ Adicionada';
+        botao.style.backgroundColor = '#2ecc71'; // Fica verde
+        botao.style.color = 'white';
+    }
+
+    // Salva tudo e atualiza as outras telas em segundo plano
+    salvarSeries(); 
+    renderizarSeries(); 
+    renderizarPerfilSeries(); 
+    atualizarEstatisticas();
 };
 
-window.adicionarFilme = function(id, nome, posterUrl) {
-    if(meusFilmes.find(f => f.id === id)) return alert('Já está na sua lista!');
-    meusFilmes.push({ id, nome: nome.toUpperCase(), posterUrl, visto: false, favorito: false });
-    salvarFilmes(); renderizarFilmes(); renderizarPerfilFilmes(); atualizarEstatisticas(); alert('Filme adicionado!');
+window.alternarFilmeBusca = function(id, nome, posterUrl, botao) {
+    const index = meusFilmes.findIndex(f => f.id === id);
+
+    if (index > -1) {
+        // Se já existe, REMOVE
+        meusFilmes.splice(index, 1);
+        botao.innerText = '+ Adicionar Filme';
+        botao.style.backgroundColor = '';
+        botao.style.color = '';
+    } else {
+        // Se não existe, ADICIONA
+        meusFilmes.push({ id, nome: nome.toUpperCase(), posterUrl, visto: false, favorito: false });
+        botao.innerText = '✓ Adicionado';
+        botao.style.backgroundColor = '#2ecc71';
+        botao.style.color = 'white';
+    }
+
+    // Salva tudo e atualiza as outras telas em segundo plano
+    salvarFilmes(); 
+    renderizarFilmes(); 
+    renderizarPerfilFilmes(); 
+    atualizarEstatisticas();
 };
 
 
