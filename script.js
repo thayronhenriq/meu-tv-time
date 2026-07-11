@@ -29,6 +29,13 @@ auth.onAuthStateChanged(user => {
                 localStorage.setItem('meuTvTimeSeries', JSON.stringify(dados.series || []));
                 localStorage.setItem('meuTvTimeFilmes', JSON.stringify(dados.filmes || []));
                 if (dados.perfil) localStorage.setItem('meuTvTimePerfil', JSON.stringify(dados.perfil));
+                if (dados.listas) localStorage.setItem('meuTvTimeListasCus', JSON.stringify(dados.listas || []));
+                
+                // Atualiza as variáveis na memória do código ativo
+                minhasSeries = dados.series || [];
+                meusFilmes = dados.filmes || [];
+                minhasListas = dados.listas || [];
+                meuPerfil = dados.perfil || { avatar: '', banner: '' };
             } else {
                 // Conta totalmente nova! Garante que o celular fique limpo
                 localStorage.setItem('meuTvTimeSeries', JSON.stringify([]));
@@ -40,10 +47,20 @@ auth.onAuthStateChanged(user => {
                 }));
             }
             
-            // Força o site a recarregar e desenhar os dados corretos apenas uma vez no login
+            // Força o site a desenhar as informações corretas após o login
             if (!sessionStorage.getItem('nuvemCarregada')) {
                 sessionStorage.setItem('nuvemCarregada', 'true');
                 window.location.reload();
+            } else {
+                // Roda as renderizações iniciais com os dados atualizados da nuvem
+                renderizarSeries();
+                renderizarFilmes();
+                renderizarPerfilSeries();
+                renderizarPerfilFilmes();
+                renderizarFavoritos();
+                renderizarListasPerfil();
+                atualizarEstatisticas();
+                renderizarImagensPerfil(); 
             }
         });
         
@@ -64,7 +81,7 @@ window.fazerLoginGoogle = function() {
 // Sair e Limpar a Memória (O CAÇA-FANTASMAS)
 window.fazerLogout = function() {
     auth.signOut().then(() => {
-        localStorage.clear(); // Apaga absolutamente TUDO do celular (Séries, Perfil, Banner)
+        localStorage.clear(); 
         sessionStorage.clear();
         window.location.reload();
     });
@@ -89,6 +106,11 @@ window.salvarPerfil = function() {
     if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
 };
 
+window.salvarListasCus = function() {
+    localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas));
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ listas: minhasListas }, { merge: true });
+};
+
 // ================= REMOÇÃO DE DADOS SEGURA E IMEDIATA =================
 window.removerSerie = function(id) {
     if (confirm("Deseja remover esta série do seu perfil?")) {
@@ -105,37 +127,42 @@ window.removerSerie = function(id) {
         });
         localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas));
 
-        // 3. O PULO DO GATO: Atualiza a nuvem NA HORA se você estiver logado
+        // 3. Atualiza a nuvem NA HORA se estiver logado
         if (usuarioLogado) {
             db.collection('usuarios').doc(usuarioLogado.uid).set({ 
                 series: minhasSeries,
                 listas: minhasListas
             }, { merge: true }).then(() => {
-                // Só recarrega a página DEPOIS que a nuvem salvou com sucesso
                 if (typeof fecharDetalhes === 'function') fecharDetalhes();
                 window.location.reload();
             }).catch(error => {
                 alert("Erro ao salvar remoção na nuvem: " + error.message);
             });
         } else {
-            // Se não estiver logado por algum motivo, recarrega direto
             if (typeof fecharDetalhes === 'function') fecharDetalhes();
             window.location.reload();
         }
     }
 };
 
+window.removerFoto = function() { 
+    meuPerfil.avatar = ''; 
+    salvarPerfil(); 
+    window.location.reload(); 
+};
 
+window.removerBanner = function() { 
+    meuPerfil.banner = ''; 
+    salvarPerfil(); 
+    window.location.reload(); 
+};
 
 
 // ================= 1. DADOS E MEMÓRIA =================
 let minhasSeries = JSON.parse(localStorage.getItem('meuTvTimeSeries')) || [];
 let meusFilmes = JSON.parse(localStorage.getItem('meuTvTimeFilmes')) || [];
 let minhasListas = JSON.parse(localStorage.getItem('meuTvTimeListasCus')) || []; // Banco de dados das Listas
-
-function salvarSeries() { localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries)); }
-function salvarFilmes() { localStorage.setItem('meuTvTimeFilmes', JSON.stringify(meusFilmes)); }
-function salvarListasCus() { localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas)); }
+let meuPerfil = JSON.parse(localStorage.getItem('meuTvTimePerfil')) || { avatar: '', banner: '' };
 
 
 // ================= 2. RENDERIZAR MINHA LISTA (SÉRIES) =================
@@ -699,10 +726,7 @@ window.removerItemLista = function(listaId, itemId, tipo) {
 };
 
 // ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
-// ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
 // Cria o banco de dados específico para o Perfil
-let meuPerfil = JSON.parse(localStorage.getItem('meuTvTimePerfil')) || { avatar: '', banner: '' };
-
 function salvarPerfil() {
     localStorage.setItem('meuTvTimePerfil', JSON.stringify(meuPerfil));
     // Salva na nuvem também, se estiver logado
@@ -738,6 +762,7 @@ window.removerFoto = function() {
     salvarPerfil();
     renderizarImagensPerfil(); 
     fecharModalEditarPerfil();
+    window.location.reload();
 };
 
 window.removerBanner = function() {
@@ -745,6 +770,7 @@ window.removerBanner = function() {
     salvarPerfil();
     renderizarImagensPerfil(); 
     fecharModalEditarPerfil();
+    window.location.reload();
 };
 // ==================================================
 
@@ -824,14 +850,11 @@ if (inputCsvTvTime) {
                 const linha = linhas[i].trim();
                 if (linha === '') continue;
 
-                // Expressão regular para dividir por vírgulas, mas ignorar vírgulas dentro de aspas (caso o nome da série tenha vírgula)
+                // Expressão regular para dividir por vírgulas, mas ignorar vírgulas dentro de aspas
                 const colunas = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
-                // O nome da série está na 1ª coluna (índice 0)
                 if (colunas.length >= 1) {
                     let nomeSerie = colunas[0].trim();
-                    
-                    // Remove aspas caso o TV Time tenha colocado
                     nomeSerie = nomeSerie.replace(/^"|"$/g, ''); 
                     
                     if (nomeSerie && nomeSerie !== 'Tv_show_name') {
@@ -849,7 +872,6 @@ if (inputCsvTvTime) {
 
             let adicionadas = 0;
 
-            // Faz a busca no TMDB para cada série da lista
             for (let i = 0; i < seriesParaImportar.length; i++) {
                 const nomeBusca = seriesParaImportar[i];
 
@@ -858,9 +880,7 @@ if (inputCsvTvTime) {
                     const dados = await resposta.json();
 
                     if (dados.results && dados.results.length > 0) {
-                        const serieTMDB = dados.results[0]; // Pega o primeiro e mais relevante resultado
-                        
-                        // Verifica se você já não adicionou essa série antes para não duplicar
+                        const serieTMDB = dados.results[0]; 
                         const jaExiste = minhasSeries.find(s => s.id === serieTMDB.id);
                         
                         if (!jaExiste) {
@@ -880,48 +900,38 @@ if (inputCsvTvTime) {
                     console.log('Erro ao importar a série:', nomeBusca);
                 }
 
-                // Pausa de 1 segundo para o TMDB não bloquear a nossa conexão
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
-            // Salva tudo no celular e atualiza as telas
             salvarSeries();
             if (typeof renderizarSeries === 'function') renderizarSeries();
             if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
             
             alert(`Importação concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
-            
-            // Limpa o botão de arquivo para permitir nova importação no futuro
             inputCsvTvTime.value = ''; 
         };
 
-        // Começa a ler o arquivo de texto
         leitor.readAsText(arquivo);
     });
 }
 // ================= 15. TELA DE "TODAS AS SÉRIES" E FILTROS =================
 
-// Variáveis que guardam como a lista está organizada
 let sortAtual = 'adicionados'; 
 let filterAtual = 'tudo'; 
 
-// Variáveis temporárias para a janela de filtros (antes de clicar em "Aplicar")
 let tempSort = 'adicionados';
 let tempFilter = 'tudo';
 
-// Abre a tela cheia
 window.abrirTodasAsSeriesPerfil = function() {
     document.getElementById('tela-todas-series').classList.remove('escondido');
     renderizarGridTodasAsSeries();
 };
 
-// Fecha a tela cheia
 window.fecharTodasAsSeriesPerfil = function() {
     document.getElementById('tela-todas-series').classList.add('escondido');
 };
 
-// Abre a aba de Filtros
 window.abrirFiltrosSeries = function() {
     tempSort = sortAtual;
     tempFilter = filterAtual;
@@ -929,24 +939,20 @@ window.abrirFiltrosSeries = function() {
     document.getElementById('modal-filtros-series').classList.remove('escondido');
 };
 
-// Fecha a aba de Filtros
 window.fecharFiltrosSeries = function() {
     document.getElementById('modal-filtros-series').classList.add('escondido');
 };
 
-// Quando clica nas pílulas de ordem
 window.selecionarSort = function(sort) {
     tempSort = sort;
     atualizarVisualModalFiltros();
 };
 
-// Quando clica nas bolinhas de progresso
 window.selecionarFilter = function(filter) {
     tempFilter = filter;
     atualizarVisualModalFiltros();
 };
 
-// Atualiza as cores e bolinhas visuais do modal
 window.atualizarVisualModalFiltros = function() {
     const btns = document.querySelectorAll('.btn-sort');
     btns.forEach(btn => btn.classList.remove('active'));
@@ -974,7 +980,6 @@ window.aplicarFiltros = function() {
     renderizarGridTodasAsSeries();
 };
 
-// Desenha a grade de acordo com o que foi filtrado
 window.renderizarGridTodasAsSeries = function() {
     const grid = document.getElementById('grid-todas-series');
     grid.innerHTML = '';
@@ -984,7 +989,6 @@ window.renderizarGridTodasAsSeries = function() {
         return;
     }
 
-    // 1. Filtrar pelo status de "Progresso"
     let seriesFiltradas = minhasSeries.filter(serie => {
         const temEpisodios = serie.episodiosVistos && serie.episodiosVistos.length > 0;
         if (filterAtual === 'assistindo') return temEpisodios;
@@ -992,7 +996,6 @@ window.renderizarGridTodasAsSeries = function() {
         return true; 
     });
 
-    // 2. Ordenar a lista filtrada
     let seriesOrdenadas = [...seriesFiltradas];
     
     if (sortAtual === 'alfabetica') {
@@ -1002,7 +1005,6 @@ window.renderizarGridTodasAsSeries = function() {
         seriesOrdenadas.reverse(); 
     } 
     else if (sortAtual === 'assistidos') {
-        // Coloca os que têm episódios vistos no topo
         seriesOrdenadas.reverse().sort((a, b) => {
             const aEps = a.episodiosVistos ? a.episodiosVistos.length : 0;
             const bEps = b.episodiosVistos ? b.episodiosVistos.length : 0;
@@ -1012,13 +1014,11 @@ window.renderizarGridTodasAsSeries = function() {
         });
     }
 
-    // 3. Imprimir a Grade
     seriesOrdenadas.forEach(serie => {
         const imagemHtml = serie.posterUrl 
             ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">`
             : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:10px; color:#888; padding:5px;">${serie.nome}</div>`;
 
-        // Barrinha amarela indicando que foi "iniciada/assistindo"
         let progressBar = '';
         if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
             progressBar = `<div style="position:absolute; bottom:0; left:0; width:60%; height:5px; background:#ffcc00; z-index:2;"></div>`;
@@ -1027,59 +1027,53 @@ window.renderizarGridTodasAsSeries = function() {
         grid.innerHTML += `
             <div style="width:100%; aspect-ratio: 2/3; position:relative; overflow:hidden; cursor:pointer;" onclick="abrirDetalhesSerie(${serie.id})">
                 ${imagemHtml}
-                <!-- Escurece a base da foto para destacar a barra de progresso -->
                 <div style="position:absolute; bottom:0; left:0; width:100%; height:20px; background:linear-gradient(to top, rgba(0,0,0,0.8), transparent);"></div>
                 ${progressBar}
             </div>
         `;
     });
 };
-// ================= 16. GRADES DE FILMES E FAVORITOS =================
 
+// ================= 16. GRADES DE FILMES E FAVORITOS =================
 window.abrirGradePerfil = function(tipo) {
     const tela = document.getElementById('tela-grade-generica');
     const titulo = document.getElementById('titulo-grade-generica');
     const grid = document.getElementById('grid-generica');
     const menuFavoritos = document.getElementById('menu-favoritos-tvtime');
     
-    // Mostra a tela e limpa a grade anterior
     tela.classList.remove('escondido');
     grid.innerHTML = '';
     
     let lista = [];
     let isSerie = true;
 
-    // Lógica para decidir o que mostrar na tela
     if (tipo === 'seriesFav') {
         titulo.innerText = 'Séries favoritas';
         lista = minhasSeries.filter(s => s.favorito);
-        menuFavoritos.style.display = 'block'; // Mostra o botão amarelo
+        menuFavoritos.style.display = 'block'; 
         isSerie = true;
     } else if (tipo === 'filmes') {
         titulo.innerText = 'Filmes';
         lista = meusFilmes;
-        menuFavoritos.style.display = 'none'; // Esconde o botão amarelo
+        menuFavoritos.style.display = 'none'; 
         isSerie = false;
     } else if (tipo === 'filmesFav') {
         titulo.innerText = 'Filmes favoritos';
         lista = meusFilmes.filter(f => f.favorito);
-        menuFavoritos.style.display = 'block'; // Mostra o botão amarelo
+        menuFavoritos.style.display = 'block'; 
         isSerie = false;
     }
 
-    // Se estiver vazio
     if (lista.length === 0) {
         grid.innerHTML = '<p style="text-align:center; color:#888; grid-column: span 3; margin-top: 50px;">Nenhum item encontrado.</p>';
         return;
     }
 
-    // Desenha os pôsteres
     lista.forEach(item => {
         const imagemHtml = item.posterUrl 
             ? `<img src="${item.posterUrl}" style="width:100%; height:100%; object-fit:cover;">`
             : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:10px; color:#888; padding:5px;">${item.nome}</div>`;
 
-        // Define se ao clicar abre a página de série ou de filme
         const onclickFn = isSerie ? `abrirDetalhesSerie(${item.id})` : `abrirDetalhesFilme(${item.id})`;
 
         grid.innerHTML += `
@@ -1092,35 +1086,4 @@ window.abrirGradePerfil = function(tipo) {
 
 window.fecharGradePerfil = function() {
     document.getElementById('tela-grade-generica').classList.add('escondido');
-};
-// ================= REMOÇÃO DE DADOS =================
-
-// Remove uma série pelo índice
-window.removerSerie = function(index) {
-    if (confirm("Tem certeza que deseja remover esta série?")) {
-        minhasSeries.splice(index, 1);
-        salvarSeries();
-        window.location.reload(); 
-    }
-};
-
-// Reseta o perfil para o estado inicial
-window.removerFoto = function() {
-    meuPerfil.avatar = ''; 
-    salvarPerfil();
-    window.location.reload();
-};
-
-window.removerBanner = function() {
-    meuPerfil.banner = ''; 
-    salvarPerfil();
-    window.location.reload();
-};
-
-window.removerSerie = function(index) {
-    if (confirm("Deseja remover esta série do seu perfil?")) {
-        minhasSeries.splice(index, 1);
-        salvarSeries();
-        window.location.reload(); 
-    }
 };
