@@ -392,7 +392,15 @@ window.abrirDetalhesSerie = async function(serieId) {
                         <button class="btn-favorito ${isFavorito}" onclick="toggleFavoritoSerie(${serie.id}, this)">♥</button>
                     </div>
                 </div>
-                <p style="color:#aaa; font-size:13px; margin-bottom:15px;">${ano} • ${serie.number_of_seasons} Temporadas</p>
+                
+                <!-- CONTAINER COM TEXTO DE TEMPORADAS E O NOVO BOTÃO REMOVER -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <p style="color:#aaa; font-size:13px; margin: 0;">${ano} • ${serie.number_of_seasons} Temporadas</p>
+                    <button onclick="removerSerie(${serie.id})" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer;">
+                        Remover Série
+                    </button>
+                </div>
+                
                 <div style="display:flex; margin-bottom:20px; border-bottom:1px solid #222;">
                     <button class="tab-btn active" style="width:50%;" onclick="mudarAba('sobre', this)">SOBRE</button>
                     <button class="tab-btn" style="width:50%;" onclick="mudarAba('episodios', this)">EPISÓDIOS</button>
