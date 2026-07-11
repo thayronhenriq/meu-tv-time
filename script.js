@@ -89,14 +89,42 @@ window.salvarPerfil = function() {
     if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
 };
 
-// ================= REMOÇÃO DE DADOS SEGURA =================
+// ================= REMOÇÃO DE DADOS SEGURA E IMEDIATA =================
 window.removerSerie = function(id) {
     if (confirm("Deseja remover esta série do seu perfil?")) {
+        // 1. Remove da lista local do celular
         minhasSeries = minhasSeries.filter(s => s.id !== id);
-        salvarSeries();
-        window.location.reload(); 
+        localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
+        
+        // 2. Remove de dentro das listas personalizadas locais
+        minhasListas = minhasListas.map(lista => {
+            if (lista.itens) {
+                lista.itens = lista.itens.filter(item => !(item.id === id && item.tipo === 'serie'));
+            }
+            return lista;
+        });
+        localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas));
+
+        // 3. O PULO DO GATO: Atualiza a nuvem NA HORA se você estiver logado
+        if (usuarioLogado) {
+            db.collection('usuarios').doc(usuarioLogado.uid).set({ 
+                series: minhasSeries,
+                listas: minhasListas
+            }, { merge: true }).then(() => {
+                // Só recarrega a página DEPOIS que a nuvem salvou com sucesso
+                if (typeof fecharDetalhes === 'function') fecharDetalhes();
+                window.location.reload();
+            }).catch(error => {
+                alert("Erro ao salvar remoção na nuvem: " + error.message);
+            });
+        } else {
+            // Se não estiver logado por algum motivo, recarrega direto
+            if (typeof fecharDetalhes === 'function') fecharDetalhes();
+            window.location.reload();
+        }
     }
 };
+
 
 
 
