@@ -26,14 +26,14 @@ auth.onAuthStateChanged(user => {
             if (doc.exists) {
                 const dados = doc.data();
                 // Baixa os dados da nuvem para o celular
-                localStorage.setItem('series', JSON.stringify(dados.series || []));
-                localStorage.setItem('filmes', JSON.stringify(dados.filmes || []));
-                if (dados.perfil) localStorage.setItem('meuPerfil', JSON.stringify(dados.perfil));
+                localStorage.setItem('meuTvTimeSeries', JSON.stringify(dados.series || []));
+                localStorage.setItem('meuTvTimeFilmes', JSON.stringify(dados.filmes || []));
+                if (dados.perfil) localStorage.setItem('meuTvTimePerfil', JSON.stringify(dados.perfil));
             } else {
                 // Conta totalmente nova! Garante que o celular fique limpo
-                localStorage.setItem('series', JSON.stringify([]));
-                localStorage.setItem('filmes', JSON.stringify([]));
-                localStorage.setItem('meuPerfil', JSON.stringify({ 
+                localStorage.setItem('meuTvTimeSeries', JSON.stringify([]));
+                localStorage.setItem('meuTvTimeFilmes', JSON.stringify([]));
+                localStorage.setItem('meuTvTimePerfil', JSON.stringify({ 
                     nome: user.displayName, 
                     avatar: user.photoURL, 
                     banner: '' 
@@ -74,20 +74,30 @@ window.fazerLogout = function() {
 // SALVANDO NA NUVEM (Séries, Filmes e Perfil)
 // -----------------------------------------------------------------
 window.salvarSeries = function() {
-    localStorage.setItem('series', JSON.stringify(minhasSeries));
+    localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
     if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true });
 };
 
 window.salvarFilmes = function() {
-    localStorage.setItem('filmes', JSON.stringify(meusFilmes));
+    localStorage.setItem('meuTvTimeFilmes', JSON.stringify(meusFilmes));
     if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ filmes: meusFilmes }, { merge: true });
 };
 
 // Garante que o banner e a foto sejam salvos na nuvem quando editados
 window.salvarPerfil = function() {
-    localStorage.setItem('meuPerfil', JSON.stringify(meuPerfil));
+    localStorage.setItem('meuTvTimePerfil', JSON.stringify(meuPerfil));
     if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
 };
+
+// ================= REMOÇÃO DE DADOS SEGURA =================
+window.removerSerie = function(id) {
+    if (confirm("Deseja remover esta série do seu perfil?")) {
+        minhasSeries = minhasSeries.filter(s => s.id !== id);
+        salvarSeries();
+        window.location.reload(); 
+    }
+};
+
 
 
 // ================= 1. DADOS E MEMÓRIA =================
