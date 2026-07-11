@@ -1025,3 +1025,26 @@ window.abrirGradePerfil = function(tipo) {
 window.fecharGradePerfil = function() {
     document.getElementById('tela-grade-generica').classList.add('escondido');
 };
+// ================= REMOÇÃO DE DADOS =================
+
+// Remove uma série pelo índice
+window.removerSerie = function(index) {
+    if (confirm("Tem certeza que deseja remover esta série?")) {
+        minhasSeries.splice(index, 1);
+        salvarSeries();
+        window.location.reload(); 
+    }
+};
+
+// Reseta o perfil para o estado inicial
+window.removerFoto = function() {
+    meuPerfil.avatar = ''; 
+    salvarPerfil();
+    window.location.reload();
+};
+
+window.removerBanner = function() {
+    meuPerfil.banner = ''; 
+    salvarPerfil();
+    window.location.reload();
+};
