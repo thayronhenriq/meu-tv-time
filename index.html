@@ -335,15 +335,23 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
     <script src="script.js"></script>
-        <!-- ================= MODAL: EDITAR PERFIL ================= -->
+    <!-- ================= MODAL: EDITAR PERFIL ================= -->
     <div id="modal-editar-perfil" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:4000; display:flex; align-items:center; justify-content:center;">
         <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333; text-align:center;">
             <h3 style="margin-bottom:20px; color:#fff;">Editar Perfil</h3>
-            <button class="btn-escolher-lista" style="text-align:center;" onclick="abrirSelecaoImagem('avatar')">Alterar Foto de Perfil</button>
-            <button class="btn-escolher-lista" style="text-align:center;" onclick="abrirSelecaoImagem('banner')">Alterar Banner</button>
-            <button onclick="fecharModalEditarPerfil()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold; margin-top:10px;">Cancelar</button>
+            
+            <!-- Foto de Perfil -->
+            <button class="btn-escolher-lista" style="text-align:center; margin-bottom: 5px;" onclick="abrirSelecaoImagem('avatar')">Alterar Foto de Perfil</button>
+            <button onclick="removerFoto()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:5px; margin-bottom: 15px; width: 100%; font-weight: bold;">Remover Foto</button>
+            
+            <!-- Banner -->
+            <button class="btn-escolher-lista" style="text-align:center; margin-bottom: 5px;" onclick="abrirSelecaoImagem('banner')">Alterar Banner</button>
+            <button onclick="removerBanner()" style="background:#c0392b; color:white; border:none; padding:8px 15px; border-radius:5px; margin-bottom: 15px; width: 100%; font-weight: bold;">Remover Banner</button>
+            
+            <button onclick="fecharModalEditarPerfil()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold; margin-top:5px;">Cancelar</button>
         </div>
     </div>
+
 
     <!-- ================= MODAL: ESCOLHER IMAGEM (BANCO DE DADOS) ================= -->
     <div id="modal-selecionar-imagem" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:4500; overflow-y:auto;">
