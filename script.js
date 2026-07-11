@@ -653,11 +653,16 @@ window.removerItemLista = function(listaId, itemId, tipo) {
 };
 
 // ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
+// ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
 // Cria o banco de dados específico para o Perfil
 let meuPerfil = JSON.parse(localStorage.getItem('meuTvTimePerfil')) || { avatar: '', banner: '' };
 
 function salvarPerfil() {
     localStorage.setItem('meuTvTimePerfil', JSON.stringify(meuPerfil));
+    // Salva na nuvem também, se estiver logado
+    if (typeof usuarioLogado !== 'undefined' && usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
+    }
 }
 
 // Atualiza o HTML com as fotos salvas
@@ -680,6 +685,22 @@ window.abrirModalEditarPerfil = function() {
 window.fecharModalEditarPerfil = function() {
     document.getElementById('modal-editar-perfil').classList.add('escondido');
 };
+
+// ====== NOVAS FUNÇÕES: REMOVER FOTO E BANNER ======
+window.removerFoto = function() {
+    meuPerfil.avatar = ''; 
+    salvarPerfil();
+    renderizarImagensPerfil(); 
+    fecharModalEditarPerfil();
+};
+
+window.removerBanner = function() {
+    meuPerfil.banner = ''; 
+    salvarPerfil();
+    renderizarImagensPerfil(); 
+    fecharModalEditarPerfil();
+};
+// ==================================================
 
 // Função que abre a galeria com todas as suas séries e filmes
 window.abrirSelecaoImagem = function(tipo) {
@@ -725,6 +746,7 @@ window.aplicarImagemPerfil = function(tipo, url) {
     renderizarImagensPerfil();
     fecharSelecaoImagem();
 };
+
 
 // ================= INICIALIZAÇÃO GERAL =================
 renderizarSeries();
@@ -1047,4 +1069,12 @@ window.removerBanner = function() {
     meuPerfil.banner = ''; 
     salvarPerfil();
     window.location.reload();
+};
+
+window.removerSerie = function(index) {
+    if (confirm("Deseja remover esta série do seu perfil?")) {
+        minhasSeries.splice(index, 1);
+        salvarSeries();
+        window.location.reload(); 
+    }
 };
