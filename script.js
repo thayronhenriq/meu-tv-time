@@ -144,6 +144,28 @@ window.removerSerie = function(id) {
         }
     }
 };
+window.adicionarSerieDiretoDetalhes = function(id, nome, posterUrl) {
+    // Adiciona na lista local do celular
+    minhasSeries.push({ id, nome: nome.toUpperCase(), posterUrl, episodiosVistos: [], favorito: false });
+    
+    // Salva no LocalStorage
+    localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
+    
+    // Salva na nuvem silenciosamente se estiver logado
+    if (usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true }).then(() => {
+            // Recarrega a própria tela de detalhes para computar a mudança visual
+            abrirDetalhesSerie(id);
+        });
+    } else {
+        abrirDetalhesSerie(id);
+    }
+    
+    // Atualiza as grades invisivelmente ao fundo
+    renderizarSeries(); 
+    renderizarPerfilSeries(); 
+    atualizarEstatisticas();
+};
 
 window.removerFoto = function() { 
     meuPerfil.avatar = ''; 
