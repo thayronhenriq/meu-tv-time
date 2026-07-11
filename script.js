@@ -1,6 +1,6 @@
 // ================= FIREBASE E LOGIN =================
 const firebaseConfig = {
-    apiKey: "AIzaSyAkfKtC4MdvFJBQSWvoZehTEjwD1pDeC8",
+    apiKey: "AIzaSyAlkfKtC4MdvFJ8QSWvoZehTEjwD1pDeC8",
     authDomain: "meutvtime-79607.firebaseapp.com",
     projectId: "meutvtime-79607",
     storageBucket: "meutvtime-79607.firebasestorage.app",
