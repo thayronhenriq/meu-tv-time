@@ -35,10 +35,11 @@ auth.onAuthStateChanged(user => {
 
 window.fazerLoginGoogle = function() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider).catch(error => {
+    auth.signInWithPopup(provider).catch(error => {
         alert("Erro ao fazer login: " + error.message);
     });
 };
+
 
 
 
