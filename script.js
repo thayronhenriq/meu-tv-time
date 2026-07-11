@@ -1,4 +1,4 @@
-/// ================= FIREBASE E LOGIN (COM BANCO DE DADOS) =================
+// ================= FIREBASE E LOGIN (COM BANCO DE DADOS) =================
 const firebaseConfig = {
     apiKey: "AIzaSyAlkfKtC4MdvFJ8QSWvoZehTEjwD1pDeC8",
     authDomain: "meutvtime-79607.firebaseapp.com",
@@ -19,43 +19,37 @@ let usuarioLogado = null;
 auth.onAuthStateChanged(user => {
     if (user) {
         usuarioLogado = user;
-        document.getElementById('tela-login').style.display = 'none'; // Esconde o login
+        document.getElementById('tela-login').style.display = 'none'; 
         
-        // Atualiza o nome e foto
-        const nomePerfil = document.querySelector('.perfil-texto h2');
-        const fotoPerfil = document.getElementById('meu-avatar-perfil');
-        if (nomePerfil) nomePerfil.innerText = user.displayName;
-        if (fotoPerfil && !meuPerfil.avatar) fotoPerfil.style.backgroundImage = `url('${user.photoURL}')`;
-        
-        // -----------------------------------------------------------------
-        // A MÁGICA: Puxa os dados EXCLUSIVOS deste e-mail da Nuvem
-        // -----------------------------------------------------------------
+        // Puxa TODOS os dados (Séries, Filmes e Perfil) da Nuvem
         db.collection('usuarios').doc(user.uid).get().then(doc => {
             if (doc.exists) {
                 const dados = doc.data();
-                minhasSeries = dados.series || [];
-                meusFilmes = dados.filmes || [];
+                // Baixa os dados da nuvem para o celular
+                localStorage.setItem('series', JSON.stringify(dados.series || []));
+                localStorage.setItem('filmes', JSON.stringify(dados.filmes || []));
+                if (dados.perfil) localStorage.setItem('meuPerfil', JSON.stringify(dados.perfil));
             } else {
-                // Se a conta for nova, começa com tudo zerado
-                minhasSeries = [];
-                meusFilmes = [];
+                // Conta totalmente nova! Garante que o celular fique limpo
+                localStorage.setItem('series', JSON.stringify([]));
+                localStorage.setItem('filmes', JSON.stringify([]));
+                localStorage.setItem('meuPerfil', JSON.stringify({ 
+                    nome: user.displayName, 
+                    avatar: user.photoURL, 
+                    banner: '' 
+                }));
             }
             
-            // Salva na memória temporária só para a tela funcionar rápido
-            localStorage.setItem('series', JSON.stringify(minhasSeries));
-            localStorage.setItem('filmes', JSON.stringify(meusFilmes));
-            
-            // Recarrega a página de forma invisível para as séries aparecerem
-            if (!sessionStorage.getItem('dadosCarregados')) {
-                sessionStorage.setItem('dadosCarregados', 'true');
+            // Força o site a recarregar e desenhar os dados corretos apenas uma vez no login
+            if (!sessionStorage.getItem('nuvemCarregada')) {
+                sessionStorage.setItem('nuvemCarregada', 'true');
                 window.location.reload();
             }
         });
         
     } else {
         usuarioLogado = null;
-        document.getElementById('tela-login').style.display = 'flex'; // Mostra o login
-        sessionStorage.removeItem('dadosCarregados');
+        document.getElementById('tela-login').style.display = 'flex';
     }
 });
 
@@ -67,38 +61,34 @@ window.fazerLoginGoogle = function() {
     });
 };
 
-// Sair e Limpar a Memória
+// Sair e Limpar a Memória (O CAÇA-FANTASMAS)
 window.fazerLogout = function() {
     auth.signOut().then(() => {
-        // Apaga os dados fantasmas do celular quando o usuário sai
-        localStorage.removeItem('series');
-        localStorage.removeItem('filmes');
+        localStorage.clear(); // Apaga absolutamente TUDO do celular (Séries, Perfil, Banner)
+        sessionStorage.clear();
         window.location.reload();
     });
 };
 
 // -----------------------------------------------------------------
-// SUBSTITUINDO AS FUNÇÕES DE SALVAR (Agora salvam na nuvem)
+// SALVANDO NA NUVEM (Séries, Filmes e Perfil)
 // -----------------------------------------------------------------
 window.salvarSeries = function() {
     localStorage.setItem('series', JSON.stringify(minhasSeries));
-    if (usuarioLogado) {
-        db.collection('usuarios').doc(usuarioLogado.uid).set({
-            series: minhasSeries,
-            filmes: meusFilmes
-        }, { merge: true });
-    }
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true });
 };
 
 window.salvarFilmes = function() {
     localStorage.setItem('filmes', JSON.stringify(meusFilmes));
-    if (usuarioLogado) {
-        db.collection('usuarios').doc(usuarioLogado.uid).set({
-            series: minhasSeries,
-            filmes: meusFilmes
-        }, { merge: true });
-    }
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ filmes: meusFilmes }, { merge: true });
 };
+
+// Garante que o banner e a foto sejam salvos na nuvem quando editados
+window.salvarPerfil = function() {
+    localStorage.setItem('meuPerfil', JSON.stringify(meuPerfil));
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
+};
+
 
 // ================= 1. DADOS E MEMÓRIA =================
 let minhasSeries = JSON.parse(localStorage.getItem('meuTvTimeSeries')) || [];
