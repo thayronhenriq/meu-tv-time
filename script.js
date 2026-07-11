@@ -444,7 +444,6 @@ window.alternarFilmeBusca = function(id, nome, posterUrl, botao) {
 };
 
 
-// ================= 7. DETALHES DA SÉRIE =================
 window.abrirDetalhesSerie = async function(serieId) {
     const tela = document.getElementById('tela-detalhes');
     const conteudo = document.getElementById('conteudo-detalhes');
@@ -482,24 +481,30 @@ window.abrirDetalhesSerie = async function(serieId) {
         const nomeSeguro = serie.name.replace(/'/g, "\\'");
         const posterUrlPath = serie.poster_path ? `${IMG_URL}${serie.poster_path}` : '';
 
+        // Se a série já está na lista, mostra o botão vermelho. Se não, deixa vazio lá em cima.
+        const botaoRemoverHtml = serieSalva 
+            ? `<button onclick="removerSerie(${serie.id})" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer;">Remover Série</button>`
+            : '';
+
+        // Se a série NÃO está na lista, cria o botão amarelo fixo no rodapé
+        const botaoAdicionarFixoHtml = !serieSalva
+            ? `<button onclick="adicionarSerieDiretoDetalhes(${serie.id}, '${nomeSeguro}', '${posterUrlPath}')" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #ffcc00; color: #000; border: none; padding: 18px; font-weight: bold; font-size: 14px; letter-spacing: 1px; z-index: 5000; cursor: pointer; text-align: center;">+ ADICIONAR SÉRIE</button>`
+            : '';
+
         conteudo.innerHTML = `
             <div style="height:230px; background:linear-gradient(to bottom, transparent, #000), url('${IMG_URL}${serie.backdrop_path}') center/cover;"></div>
-            <div style="padding:15px; margin-top:-30px;">
+            <div style="padding:15px; margin-top:-30px; padding-bottom: 80px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
                     <h2 style="font-size:24px; font-weight:bold; width:70%;">${serie.name}</h2>
                     <div style="display:flex;">
-                        <!-- NOVO BOTÃO DE LISTA -->
                         <button class="btn-add-to-list-icon" onclick="abrirModalAddLista(${serie.id}, 'serie', '${posterUrlPath}', '${nomeSeguro}')">☰</button>
                         <button class="btn-favorito ${isFavorito}" onclick="toggleFavoritoSerie(${serie.id}, this)">♥</button>
                     </div>
                 </div>
                 
-                <!-- CONTAINER COM TEXTO DE TEMPORADAS E O NOVO BOTÃO REMOVER -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <p style="color:#aaa; font-size:13px; margin: 0;">${ano} • ${serie.number_of_seasons} Temporadas</p>
-                    <button onclick="removerSerie(${serie.id})" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer;">
-                        Remover Série
-                    </button>
+                    ${botaoRemoverHtml}
                 </div>
                 
                 <div style="display:flex; margin-bottom:20px; border-bottom:1px solid #222;">
@@ -508,9 +513,12 @@ window.abrirDetalhesSerie = async function(serieId) {
                 </div>
                 <div id="aba-sobre"><p style="font-size:14px; color:#ccc;">${serie.overview || "Sem sinopse."}</p></div>
                 <div id="aba-episodios" class="escondido">${htmlTemporadas}</div>
-            </div>`;
+            </div>
+            ${botaoAdicionarFixoHtml}`;
+            
     } catch(e) { conteudo.innerHTML = '<p>Erro.</p>'; }
 };
+
 
 
 // ================= 8. DETALHES DO FILME =================
