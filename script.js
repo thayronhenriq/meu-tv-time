@@ -214,19 +214,26 @@ function renderizarSeries() {
         const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
 
         listaContainer.innerHTML += `
-            <div class="serie-card" onclick="abrirDetalhesSerie(${serie.id})">
-                <div class="img-container">${img}</div>
+            <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
+                
+                <!-- Clicar na imagem abre a SÉRIE -->
+                <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
+                
                 <div class="serie-info">
-                    <span class="serie-tag">${serie.nome} <i>&gt;</i></span>
+                    <!-- Clicar no nome abre a SÉRIE -->
+                    <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
                     <span class="serie-ep-info">T${tForm} | E${eForm}</span>
                     <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
                 </div>
+                
                 <div class="serie-action">
+                    <!-- Clicar no check marca o episódio direto daqui -->
                     <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
                 </div>
             </div>`;
     });
 }
+
 
 window.marcarDoCartao = function(id, t, e) {
     let serie = minhasSeries.find(s => s.id === id);
@@ -1162,4 +1169,106 @@ window.abrirGradePerfil = function(tipo) {
 
 window.fecharGradePerfil = function() {
     document.getElementById('tela-grade-generica').classList.add('escondido');
+};
+
+// ================= 17. DETALHES DO EPISÓDIO =================
+
+window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
+    const tela = document.getElementById('tela-detalhes-episodio');
+    const conteudo = document.getElementById('conteudo-detalhes-episodio');
+    tela.classList.remove('escondido');
+    conteudo.innerHTML = '<p style="text-align:center; margin-top:50px; color:#888;">Carregando episódio...</p>';
+
+    try {
+        // Busca os dados específicos do episódio
+        const resp = await fetch(`${BASE_URL}/tv/${serieId}/season/${seasonNum}/episode/${epNum}?api_key=${API_KEY}&language=pt-BR`);
+        const ep = await resp.json();
+        
+        // Busca o nome da série
+        const respSerie = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR`);
+        const serieData = await respSerie.json();
+
+        // Organiza as informações visuais
+        const img = ep.still_path ? `${IMG_URL}${ep.still_path}` : (serieData.backdrop_path ? `${IMG_URL}${serieData.backdrop_path}` : '');
+        const tForm = String(seasonNum).padStart(2, '0');
+        const eForm = String(epNum).padStart(2, '0');
+        const dataAr = ep.air_date ? ep.air_date.split('-').reverse().join('/') : 'Data não informada';
+        const sinopse = ep.overview || "Nenhuma sinopse disponível para este episódio ainda.";
+        const tituloEpisodio = ep.name || `Episódio ${epNum}`;
+        
+        // Verifica se o episódio já foi marcado como visto
+        const serieSalva = minhasSeries.find(s => s.id === serieId);
+        const isVisto = (serieSalva && serieSalva.episodiosVistos && serieSalva.episodiosVistos.includes(`${seasonNum}-${epNum}`));
+        const corBotao = isVisto ? '#78b833' : '#333';
+
+        // Desenha a tela
+        conteudo.innerHTML = `
+            <div style="height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px;"></div>
+            
+            <div style="padding: 20px; margin-top: -30px;">
+                <!-- Nome da Série (Clicável) -->
+                <div onclick="fecharDetalhesEpisodio(); abrirDetalhesSerie(${serieId})" style="display:inline-block; border: 1px solid #555; border-radius: 15px; padding: 3px 10px; font-size: 11px; font-weight: bold; margin-bottom: 15px; color: #ccc; cursor:pointer;">
+                    ${serieData.name.toUpperCase()} &gt;
+                </div>
+                
+                <!-- Info do Episódio -->
+                <h2 style="font-size:26px; font-weight:bold; margin-bottom: 5px;">T${tForm} \vert{} E${eForm}</h2>
+                <h3 style="font-size:16px; color:#aaa; font-weight: normal; margin-bottom: 20px;">${tituloEpisodio}</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; color: #888;">📅 ${dataAr}</div>
+                    
+                    <!-- Botão Marcar como Visto (Redondo) -->
+                    <button onclick="marcarEpisodioDetalhe(${serieId},${seasonNum}, ${epNum}, this)" style="background: ${corBotao}; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">✓</button>
+                </div>
+
+                <!-- SEÇÃO VISUAL: AVALIAR -->
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">AVALIAR ESTE EPISÓDIO</h4>
+                    <div style="display: flex; justify-content: center; gap: 15px; font-size: 26px; color: #ffcc00;">
+                        <span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span>
+                    </div>
+                </div>
+
+                <!-- SEÇÃO VISUAL: SENTIMENTOS -->
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">COMO VOCÊ SE SENTIU?</h4>
+                    <div style="display: flex; justify-content: center; gap: 12px; font-size: 32px;">
+                        <span>😲</span><span>😂</span><span>😭</span><span>😍</span><span>😡</span>
+                    </div>
+                </div>
+
+                <h4 style="font-size: 16px; margin-bottom: 10px; font-weight: bold;">Informações do episódio</h4>
+                <p style="font-size:14px; line-height:1.6; color:#ccc; text-align:justify;">${sinopse}</p>
+            </div>
+        `;
+    } catch(e) {
+        conteudo.innerHTML = '<p style="text-align:center; margin-top:50px;">Erro de conexão ao carregar o episódio.</p>';
+    }
+};
+
+window.fecharDetalhesEpisodio = function() {
+    document.getElementById('tela-detalhes-episodio').classList.add('escondido');
+};
+
+// Lógica para marcar/desmarcar o episódio diretamente dessa tela
+window.marcarEpisodioDetalhe = function(serieId, tempNum, epNum, botao) {
+    let serie = minhasSeries.find(s => s.id === serieId);
+    if (!serie) return alert('Adicione a série à sua lista primeiro!');
+    if (!serie.episodiosVistos) serie.episodiosVistos = [];
+    
+    const epId = `${tempNum}-${epNum}`;
+    const index = serie.episodiosVistos.indexOf(epId);
+    
+    if (index > -1) {
+        serie.episodiosVistos.splice(index, 1);
+        botao.style.background = '#333'; // Fica cinza
+    } else {
+        serie.episodiosVistos.push(epId);
+        botao.style.background = '#78b833'; // Fica verde
+    }
+    
+    salvarSeries(); 
+    atualizarEstatisticas(); 
+    renderizarSeries(); // Atualiza a aba Minha Lista no fundo
 };
