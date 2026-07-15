@@ -1682,3 +1682,74 @@ window.marcarEpisodioEmBreve = function(serieId, tempNum, epNum, btn) {
         renderizarSeries(); // Atualiza a aba Minha Lista silenciosamente no fundo
     }
 };
+
+// ================= IMPORTAR EPISÓDIOS ASSISTIDOS (TV TIME) =================
+
+window.importarEpisodiosVistos = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        // Divide o arquivo linha por linha
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return alert("O arquivo parece estar vazio.");
+
+        // Identifica onde estão as colunas importantes no cabeçalho
+        const headers = lines[0].toLowerCase().split(',');
+        const idxNome = headers.findIndex(h => h.includes('tv_show_name') || h.includes('nome'));
+        const idxTemp = headers.findIndex(h => h.includes('episode_season_number') || h.includes('season'));
+        const idxEp = headers.findIndex(h => h.includes('episode_number') || h.includes('episodio') || h.includes('episode'));
+
+        if (idxNome === -1 || idxTemp === -1 || idxEp === -1) {
+            return alert("Colunas não encontradas. Verifique se é o arquivo 'tracking-prod-records-v2.csv'.");
+        }
+
+        let adicionados = 0;
+
+        // Processa cada linha do arquivo
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            
+            // Regex inteligente para ler CSV (ignora vírgulas dentro de aspas)
+            const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            if (row.length < 3) continue;
+
+            const nomeRaw = row[idxNome] ? row[idxNome].replace(/(^"|"$)/g, '').trim().toUpperCase() : '';
+            const temp = row[idxTemp] ? row[idxTemp].replace(/(^"|"$)/g, '').trim() : '';
+            const ep = row[idxEp] ? row[idxEp].replace(/(^"|"$)/g, '').trim() : '';
+
+            if (!nomeRaw || !temp || !ep) continue;
+
+            // Busca a série na sua lista local
+            let serie = minhasSeries.find(s => s.nome.toUpperCase() === nomeRaw);
+            if (serie) {
+                if (!serie.episodiosVistos) serie.episodiosVistos = [];
+                const epId = `${temp}-${ep}`;
+                
+                // Marca o episódio se ainda não estiver marcado
+                if (!serie.episodiosVistos.includes(epId)) {
+                    serie.episodiosVistos.push(epId);
+                    
+                    // Opcional: Atualiza o carimbo de tempo para organizar o "Assistir a Seguir"
+                    serie.ultimaAtualizacao = Date.now();
+                    
+                    adicionados++;
+                }
+            }
+        }
+
+        // Salva tudo e atualiza as telas
+        localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
+        if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+        if (typeof renderizarSeries === 'function') renderizarSeries();
+
+        alert(`Sucesso absoluto! ${adicionados} episódios foram marcados como assistidos em um piscar de olhos.`);
+        event.target.value = ''; // Limpa o input para permitir nova importação
+    };
+    
+    // Lê o arquivo como texto
+    reader.readAsText(file);
+};
+
