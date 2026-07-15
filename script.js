@@ -234,77 +234,116 @@ function renderizarSeries() {
         return;
     }
 
-    // 2. Verifica qual modo está ativo e desenha a tela correspondente
-    if (modoExibicaoMinhaLista === 'lista') {
+    // 2. Separa as séries nas três categorias
+    const assistirASeguir = [];
+    const semAssistirTempo = [];
+    const naoIniciadas = [];
+    
+    const trintaDiasEmMs = 30 * 24 * 60 * 60 * 1000;
+    const agora = Date.now();
+
+    minhasSeries.forEach(serie => {
+        const qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
         
-        // --- MODO LISTA (O SEU ORIGINAL) ---
-        minhasSeries.forEach(serie => {
-            let proxTemp = 1; let proxEp = 1;
-            if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
-                let vistos = serie.episodiosVistos.map(v => {
-                    let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
-                });
-                vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
-                let ultimoVisto = vistos[vistos.length - 1];
-                proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
+        if (qtdVistos === 0) {
+            naoIniciadas.push(serie);
+        } else {
+            // Se a série tiver um carimbo de tempo e for mais velha que 30 dias
+            if (serie.ultimaAtualizacao && (agora - serie.ultimaAtualizacao > trintaDiasEmMs)) {
+                semAssistirTempo.push(serie);
+            } else {
+                assistirASeguir.push(serie); // Padrão para séries ativas
             }
+        }
+    });
 
-            const tForm = String(proxTemp).padStart(2, '0');
-            const eForm = String(proxEp).padStart(2, '0');
-            const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+    // 3. Função inteligente que desenha os blocos das categorias
+    const gerarHTMLGrupo = (titulo, seriesDoGrupo) => {
+        if (seriesDoGrupo.length === 0) return ''; // Se a categoria estiver vazia, não desenha nada
 
-            listaContainer.innerHTML += `
-                <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
-                    <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
-                    <div class="serie-info">
-                        <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
-                        <span class="serie-ep-info">T${tForm} | E${eForm}</span>
-                        <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
-                    </div>
-                    <div class="serie-action">
-                        <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
-                    </div>
-                </div>`;
-        });
+        let html = `
+            <div style="display: flex; justify-content: center; margin: 25px 0 15px 0; clear: both;">
+                <span style="background: #555; color: #fff; padding: 4px 15px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${titulo}</span>
+            </div>
+        `;
 
-    } else {
-        
-        // --- MODO GRADE (BANNERS COM PROGRESSO) ---
-        let gradeHtml = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 30px;">';
-        
-        minhasSeries.forEach(serie => {
-            const img = serie.posterUrl 
-                ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
-                : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${serie.nome}</div>`;
+        if (modoExibicaoMinhaLista === 'lista') {
             
-            // Cálculo visual da barra de progresso
-            let qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
-            let porcentagem = 0;
-            if (qtdVistos > 0) {
-                // Simulação: Aumenta a barra baseado na quantidade vista (limitado a 95% para não parecer 100% finalizado a menos que tratemos depois)
-                porcentagem = Math.min((qtdVistos * 5), 95); 
-            }
+            // --- MODO LISTA (O SEU ORIGINAL) ---
+            seriesDoGrupo.forEach(serie => {
+                let proxTemp = 1; let proxEp = 1;
+                if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
+                    let vistos = serie.episodiosVistos.map(v => {
+                        let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
+                    });
+                    vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
+                    let ultimoVisto = vistos[vistos.length - 1];
+                    proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
+                }
 
-            gradeHtml += `
-                <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesSerie(${serie.id})">
-                    ${img}
-                    
-                    <!-- Sombra na base para destacar a barra amarela -->
-                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
-                    
-                    <!-- Fundo da barra de progresso (Cinza escuro) -->
-                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
-                        <!-- Progresso real (Amarelo) -->
-                        <div style="width: ${porcentagem}%; height: 100%; background: #ffcc00;"></div>
+                const tForm = String(proxTemp).padStart(2, '0');
+                const eForm = String(proxEp).padStart(2, '0');
+                const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+
+                html += `
+                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
+                        <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
+                        <div class="serie-info">
+                            <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
+                            <span class="serie-ep-info">T${tForm} | E${eForm}</span>
+                            <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
+                        </div>
+                        <div class="serie-action">
+                            <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
+                        </div>
+                    </div>`;
+            });
+
+        } else {
+            
+            // --- MODO GRADE (BANNERS COM PROGRESSO) ---
+            html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 20px;">';
+            
+            seriesDoGrupo.forEach(serie => {
+                const img = serie.posterUrl 
+                    ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                    : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${serie.nome}</div>`;
+                
+                // Cálculo visual da barra de progresso
+                let qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
+                let porcentagem = 0;
+                if (qtdVistos > 0) {
+                    porcentagem = Math.min((qtdVistos * 5), 95); 
+                }
+
+                html += `
+                    <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesSerie(${serie.id})">
+                        ${img}
+                        
+                        <!-- Sombra na base para destacar a barra amarela -->
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
+                        
+                        <!-- Fundo da barra de progresso (Cinza escuro) -->
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
+                            <!-- Progresso real (Amarelo) -->
+                            <div style="width: ${porcentagem}%; height: 100%; background: #ffcc00;"></div>
+                        </div>
                     </div>
-                </div>
-            `;
-        });
-        
-        gradeHtml += '</div>';
-        listaContainer.innerHTML += gradeHtml;
-    }
+                `;
+            });
+            
+            html += '</div>';
+        }
+
+        return html;
+    };
+
+    // 4. Injeta as categorias na tela na ordem exata
+    listaContainer.innerHTML += gerarHTMLGrupo('ASSISTIR A SEGUIR', assistirASeguir);
+    listaContainer.innerHTML += gerarHTMLGrupo('SEM ASSISTIR HÁ ALGUM TEMPO', semAssistirTempo);
+    listaContainer.innerHTML += gerarHTMLGrupo('NÃO INICIADAS', naoIniciadas);
 }
+
 
 
 
