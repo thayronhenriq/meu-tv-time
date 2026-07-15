@@ -151,21 +151,27 @@ window.adicionarSerieDiretoDetalhes = function(id, nome, posterUrl) {
     // Salva no LocalStorage
     localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
     
+    // Atualiza as grades invisivelmente ao fundo
+    renderizarSeries(); 
+    renderizarPerfilSeries(); 
+    atualizarEstatisticas();
+    
+    // O SEGREDO: Atualiza a tela de busca no fundo para o botão ficar verde!
+    if (typeof ultimosResultadosBusca !== 'undefined' && ultimosResultadosBusca.length > 0) {
+        renderizarResultadosBusca(ultimosResultadosBusca);
+    }
+    
     // Salva na nuvem silenciosamente se estiver logado
     if (usuarioLogado) {
         db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true }).then(() => {
-            // Recarrega a própria tela de detalhes para computar a mudança visual
+            // Recarrega a própria tela de detalhes para computar a mudança visual (botão vermelho)
             abrirDetalhesSerie(id);
         });
     } else {
         abrirDetalhesSerie(id);
     }
-    
-    // Atualiza as grades invisivelmente ao fundo
-    renderizarSeries(); 
-    renderizarPerfilSeries(); 
-    atualizarEstatisticas();
 };
+
 
 window.removerFoto = function() { 
     meuPerfil.avatar = ''; 
@@ -474,6 +480,9 @@ window.mudarModoBusca = function(modo) {
 document.getElementById('btn-buscar').addEventListener('click', () => executarBusca());
 document.getElementById('input-busca').addEventListener('keypress', (e) => { if (e.key === 'Enter') executarBusca(); });
 
+// Memória para guardar a última pesquisa
+let ultimosResultadosBusca = []; 
+
 async function executarBusca() {
     const termo = document.getElementById('input-busca').value.trim();
     if (!termo) return;
@@ -483,8 +492,14 @@ async function executarBusca() {
     try {
         const resposta = await fetch(`${BASE_URL}/search/${modoBusca}?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(termo)}`);
         const dados = await resposta.json();
-        renderizarResultadosBusca(dados.results);
-    } catch (e) { container.innerHTML = '<p style="color:red; text-align:center; width:100%;">Erro de conexão.</p>'; }
+        
+        // Salva os dados na memória antes de desenhar a tela
+        ultimosResultadosBusca = dados.results; 
+        renderizarResultadosBusca(ultimosResultadosBusca);
+        
+    } catch (e) { 
+        container.innerHTML = '<p style="color:red; text-align:center; width:100%;">Erro de conexão.</p>'; 
+    }
 }
 
 function renderizarResultadosBusca(resultados) {
