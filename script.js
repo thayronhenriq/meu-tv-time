@@ -1216,15 +1216,15 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
                     ${serieData.name.toUpperCase()} &gt;
                 </div>
                 
-                <!-- Info do Episódio -->
-                <h2 style="font-size:26px; font-weight:bold; margin-bottom: 5px;">T${tForm} \vert{} E${eForm}</h2>
+                <!-- Info do Episódio (AQUI ESTÁ A CORREÇÃO DA BARRA VERTICAL) -->
+                <h2 style="font-size:26px; font-weight:bold; margin-bottom: 5px;">T${tForm} | E${eForm}</h2>
                 <h3 style="font-size:16px; color:#aaa; font-weight: normal; margin-bottom: 20px;">${tituloEpisodio}</h3>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
                     <div style="font-size: 13px; color: #888;">📅 ${dataAr}</div>
-                    
+                        
                     <!-- Botão Marcar como Visto (Redondo) -->
-                    <button onclick="marcarEpisodioDetalhe(${serieId},${seasonNum}, ${epNum}, this)" style="background: ${corBotao}; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">✓</button>
+                    <button onclick="marcarEpisodioDetalhe(${serieId}, ${seasonNum}, ${epNum}, this)" style="background: ${corBotao}; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">✓</button>
                 </div>
 
                 <!-- SEÇÃO VISUAL: AVALIAR -->
