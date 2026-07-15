@@ -757,13 +757,47 @@ window.carregarEpisodios = async function(serieId, seasonNum) {
         const resp = await fetch(`${BASE_URL}/tv/${serieId}/season/${seasonNum}?api_key=${API_KEY}&language=pt-BR`);
         const dados = await resp.json();
         let html = '';
+
+        // Pega a data de hoje e zera as horas para fazer uma comparação exata de dias
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
         dados.episodes.forEach(ep => {
             const img = ep.still_path ? `${IMG_URL}${ep.still_path}` : '';
             const tForm = String(seasonNum).padStart(2, '0');
             const eForm = String(ep.episode_number).padStart(2, '0');
             const classeVisto = vistos.includes(`${seasonNum}-${ep.episode_number}`) ? 'visto' : '';
             
-            // Aqui é onde o cartão se torna clicável e o botão de check ganha o stopPropagation
+            // Lógica para saber quantos dias faltam
+            let diffDias = -1; // Padrão: Episódio já lançado
+            if (ep.air_date) {
+                const dataEp = new Date(ep.air_date + 'T00:00:00');
+                diffDias = Math.floor((dataEp - hoje) / (1000 * 60 * 60 * 24));
+            }
+
+            // Decide o que mostrar do lado direito (Botão ✓ ou Contagem Regressiva)
+            let acaoHtml = '';
+            
+            if (!ep.air_date) {
+                // Se a API ainda não tiver a data definida
+                acaoHtml = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width: 45px;">
+                        <span style="font-size:12px; font-weight:bold; color:#888;">TBA</span>
+                    </div>
+                `;
+            } else if (diffDias > 0) {
+                // Episódio no futuro: Substitui o botão pelos dias restantes!
+                acaoHtml = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width: 45px;">
+                        <span style="font-size:18px; font-weight:bold; line-height: 1; color: #fff;">${diffDias}</span>
+                        <span style="font-size:10px; color:#aaa; letter-spacing: 1px; margin-top: 2px;">DIAS</span>
+                    </div>
+                `;
+            } else {
+                // Episódio já lançado (hoje ou no passado): Mostra o botão normal
+                acaoHtml = `<button class="ep-check ${classeVisto}" data-ep="${ep.episode_number}" onclick="event.stopPropagation(); toggleEpisodioVisto(${serieId}, ${seasonNum}, ${ep.episode_number}, this)">✓</button>`;
+            }
+
             html += `
                 <div class="ep-card" style="cursor:pointer;" onclick="abrirDetalhesEpisodio(${serieId}, ${seasonNum}, ${ep.episode_number})">
                     <img src="${img}" class="ep-img" style="background:#333;">
@@ -771,7 +805,7 @@ window.carregarEpisodios = async function(serieId, seasonNum) {
                         <div style="font-weight:bold; font-size:14px;">T${tForm} | E${eForm}</div>
                         <div style="font-size:12px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${ep.name}</div>
                     </div>
-                    <button class="ep-check ${classeVisto}" data-ep="${ep.episode_number}" onclick="event.stopPropagation(); toggleEpisodioVisto(${serieId}, ${seasonNum}, ${ep.episode_number}, this)">✓</button>
+                    ${acaoHtml}
                 </div>`;
         });
         container.innerHTML = html;
@@ -779,6 +813,7 @@ window.carregarEpisodios = async function(serieId, seasonNum) {
         container.innerHTML = '<p>Erro.</p>'; 
     }
 };
+
 
 
 window.toggleEpisodioVisto = function(serieId, tempNum, epNum, btn) {
