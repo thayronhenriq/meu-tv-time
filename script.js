@@ -1381,3 +1381,179 @@ window.marcarEpisodioDetalhe = function(serieId, tempNum, epNum, botao) {
     atualizarEstatisticas(); 
     renderizarSeries(); // Atualiza a aba Minha Lista no fundo
 };
+
+// ================= 18. CALENDÁRIO "EM BREVE" =================
+
+window.mudarAbaSeries = function(aba) {
+    // Alterna o visual dos botões
+    document.getElementById('aba-minha-lista').classList.toggle('active', aba === 'lista');
+    document.getElementById('aba-em-breve').classList.toggle('active', aba === 'embreve');
+
+    // Alterna qual div fica visível
+    document.getElementById('conteudo-minha-lista').classList.toggle('escondido', aba !== 'lista');
+    document.getElementById('conteudo-em-breve').classList.toggle('escondido', aba !== 'embreve');
+
+    // Se clicou no calendário, manda o sistema calcular as datas
+    if (aba === 'embreve') {
+        renderizarEmBreve();
+    }
+};
+
+window.renderizarEmBreve = async function() {
+    const container = document.getElementById('lista-em-breve');
+    if (!container) return;
+    
+    if (minhasSeries.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Sua lista está vazia.</p>';
+        return;
+    }
+
+    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Sincronizando calendário...</p>';
+
+    let episodiosCalendario = [];
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Zera as horas para comparar só o dia
+
+    try {
+        // Dispara uma busca rápida no TMDB para TODAS as séries da sua lista de uma vez
+        const promessas = minhasSeries.map(serie =>
+            fetch(`${BASE_URL}/tv/${serie.id}?api_key=${API_KEY}&language=pt-BR`).then(res => res.json())
+        );
+        const resultados = await Promise.all(promessas);
+
+        resultados.forEach((dados, index) => {
+            const serieLocal = minhasSeries[index];
+            if (!dados.id) return;
+
+            // Função que analisa a data do episódio e joga no calendário se for recente/futuro
+            const processarEpisodio = (ep) => {
+                if (!ep || !ep.air_date) return;
+                const dataEp = new Date(ep.air_date + 'T00:00:00');
+                
+                // Calcula a diferença de dias (negativo = passado, positivo = futuro)
+                const diffDias = Math.floor((dataEp - hoje) / (1000 * 60 * 60 * 24));
+
+                // Filtro: Mostra episódios dos últimos 15 dias até os próximos 30 dias
+                if (diffDias >= -15 && diffDias <= 30) {
+                    episodiosCalendario.push({
+                        serieId: serieLocal.id,
+                        nomeSerie: serieLocal.nome,
+                        temporada: ep.season_number,
+                        episodio: ep.episode_number,
+                        titulo: ep.name,
+                        data: dataEp,
+                        diffDias: diffDias,
+                        img: ep.still_path ? `${IMG_URL}${ep.still_path}` : (serieLocal.posterUrl || '')
+                    });
+                }
+            };
+
+            // Processa o último lançado e o próximo
+            processarEpisodio(dados.last_episode_to_air);
+            processarEpisodio(dados.next_episode_to_air);
+        });
+
+        // Remove itens duplicados (ocorre quando o "último" e o "próximo" caem no mesmo dia)
+        const mapUnicos = new Map();
+        episodiosCalendario.forEach(ep => mapUnicos.set(`${ep.serieId}-${ep.temporada}-${ep.episodio}`, ep));
+        episodiosCalendario = Array.from(mapUnicos.values());
+
+        // Ordena tudo cronologicamente (dos mais antigos exibidos para os do futuro)
+        episodiosCalendario.sort((a, b) => a.data - b.data);
+
+        if (episodiosCalendario.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum lançamento nos últimos ou próximos dias.</p>';
+            return;
+        }
+
+        // Agrupa os episódios pelos rótulos de data (Ex: HOJE, ONTEM, AMANHÃ)
+        const grupos = {};
+        episodiosCalendario.forEach(ep => {
+            let labelData = '';
+            if (ep.diffDias === 0) labelData = 'HOJE';
+            else if (ep.diffDias === -1) labelData = 'ONTEM';
+            else if (ep.diffDias === 1) labelData = 'AMANHÃ';
+            else {
+                // Formata datas distantes como "13 DE JUL. DE 2026"
+                const opcoes = { day: '2-digit', month: 'short', year: 'numeric' };
+                labelData = ep.data.toLocaleDateString('pt-BR', opcoes).toUpperCase().replace(' DE ', ' DE ');
+            }
+
+            if (!grupos[labelData]) grupos[labelData] = [];
+            grupos[labelData].push(ep);
+        });
+
+        // Monta o visual da tela
+        let html = '';
+        for (const [dataLabel, eps] of Object.entries(grupos)) {
+            // Pílula separadora de data
+            html += `
+                <div style="display: flex; justify-content: center; margin: 25px 0 10px 0;">
+                    <span style="background: #555; color: #fff; padding: 4px 15px; border-radius: 20px; font-size: 11px; font-weight: bold;">${dataLabel}</span>
+                </div>
+            `;
+
+            // Desenha os cartões de episódios daquele dia
+            eps.forEach(ep => {
+                const tForm = String(ep.temporada).padStart(2, '0');
+                const eForm = String(ep.episodio).padStart(2, '0');
+
+                // Verifica se já foi assistido
+                const s = minhasSeries.find(x => x.id === ep.serieId);
+                const isVisto = s && s.episodiosVistos && s.episodiosVistos.includes(`${ep.temporada}-${ep.episodio}`);
+                const classeVisto = isVisto ? 'visto' : '';
+
+                // Lógica das Etiquetas Coloridas
+                let tagsHtml = '';
+                if (ep.episodio === 1) tagsHtml += '<span style="background: #fff; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px;">PREMIERE</span>';
+                if (ep.diffDias >= 0) tagsHtml += '<span style="background: #ffcc00; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px;">NOVO</span>';
+                if (ep.diffDias < 0 || (ep.diffDias === 0 && isVisto)) tagsHtml += '<span style="background: #78b833; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">EXIBIDO</span>';
+
+                const imagemHtml = ep.img ? `<img src="${ep.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+
+                html += `
+                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${ep.serieId}, ${ep.temporada}, ${ep.episodio})">
+                        <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${ep.serieId})">
+                            ${imagemHtml}
+                        </div>
+                        <div class="serie-info">
+                            <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${ep.serieId})">${ep.nomeSerie} <i>&gt;</i></span>
+                            <span class="serie-ep-info">T${tForm} | E${eForm}</span>
+                            <span class="serie-ep-title" style="color:#aaa; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 180px; display:inline-block;">${ep.titulo}</span>
+                            <div style="margin-top: 5px;">${tagsHtml}</div>
+                        </div>
+                        <div class="serie-action">
+                            <button class="check-btn ${classeVisto}" onclick="event.stopPropagation(); marcarEpisodioEmBreve(${ep.serieId}, ${ep.temporada}, ${ep.episodio}, this)">✓</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Erro ao carregar as datas.</p>';
+    }
+};
+
+// Função rápida para dar check no episódio direto pelo calendário sem recarregar tudo
+window.marcarEpisodioEmBreve = function(serieId, tempNum, epNum, btn) {
+    let serie = minhasSeries.find(s => s.id === serieId);
+    if (serie) {
+        if (!serie.episodiosVistos) serie.episodiosVistos = [];
+        const epId = `${tempNum}-${epNum}`;
+        const index = serie.episodiosVistos.indexOf(epId);
+
+        if (index > -1) {
+            serie.episodiosVistos.splice(index, 1);
+            btn.classList.remove('visto');
+        } else {
+            serie.episodiosVistos.push(epId);
+            btn.classList.add('visto');
+        }
+        salvarSeries();
+        atualizarEstatisticas();
+        renderizarSeries(); // Atualiza a aba Minha Lista silenciosamente no fundo
+    }
+};
