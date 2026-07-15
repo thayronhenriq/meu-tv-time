@@ -186,6 +186,16 @@ let meusFilmes = JSON.parse(localStorage.getItem('meuTvTimeFilmes')) || [];
 let minhasListas = JSON.parse(localStorage.getItem('meuTvTimeListasCus')) || []; // Banco de dados das Listas
 let meuPerfil = JSON.parse(localStorage.getItem('meuTvTimePerfil')) || { avatar: '', banner: '' };
 
+// ================= ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE) =================
+let modoExibicaoMinhaLista = localStorage.getItem('modoTvTimeExibicao') || 'lista';
+
+window.alternarModoExibicao = function() {
+    // Se está em lista, vira grade. Se está em grade, vira lista.
+    modoExibicaoMinhaLista = modoExibicaoMinhaLista === 'lista' ? 'grade' : 'lista';
+    localStorage.setItem('modoTvTimeExibicao', modoExibicaoMinhaLista);
+    renderizarSeries(); // Manda desenhar a tela de novo instantaneamente
+};
+
 
 // ================= 2. RENDERIZAR MINHA LISTA (SÉRIES) =================
 function renderizarSeries() {
@@ -193,46 +203,95 @@ function renderizarSeries() {
     if (!listaContainer) return;
     listaContainer.innerHTML = '';
 
+    // 1. Desenha o Botão de Alternar (Lista / Grade) no topo direito
+    const iconeBotao = modoExibicaoMinhaLista === 'lista' ? '⊞' : '☰'; 
+    const corBotao = modoExibicaoMinhaLista === 'grade' ? '#ffcc00' : '#888';
+    
+    listaContainer.innerHTML += `
+        <div style="display: flex; justify-content: flex-end; padding: 10px 15px;">
+            <button onclick="alternarModoExibicao()" style="background: none; border: 1px solid #333; border-radius: 5px; color: ${corBotao}; font-size: 22px; cursor: pointer; padding: 2px 10px; display: flex; align-items: center; justify-content: center; height: 35px;">
+                ${iconeBotao}
+            </button>
+        </div>
+    `;
+
     if(minhasSeries.length === 0) {
-        listaContainer.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Sua lista está vazia.</p>';
+        listaContainer.innerHTML += '<p style="text-align:center; color:#888; margin-top:30px;">Sua lista está vazia.</p>';
         return;
     }
 
-    minhasSeries.forEach(serie => {
-        let proxTemp = 1; let proxEp = 1;
-        if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
-            let vistos = serie.episodiosVistos.map(v => {
-                let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
-            });
-            vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
-            let ultimoVisto = vistos[vistos.length - 1];
-            proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
-        }
+    // 2. Verifica qual modo está ativo e desenha a tela correspondente
+    if (modoExibicaoMinhaLista === 'lista') {
+        
+        // --- MODO LISTA (O SEU ORIGINAL) ---
+        minhasSeries.forEach(serie => {
+            let proxTemp = 1; let proxEp = 1;
+            if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
+                let vistos = serie.episodiosVistos.map(v => {
+                    let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
+                });
+                vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
+                let ultimoVisto = vistos[vistos.length - 1];
+                proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
+            }
 
-        const tForm = String(proxTemp).padStart(2, '0');
-        const eForm = String(proxEp).padStart(2, '0');
-        const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+            const tForm = String(proxTemp).padStart(2, '0');
+            const eForm = String(proxEp).padStart(2, '0');
+            const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
 
-        listaContainer.innerHTML += `
-            <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
-                
-                <!-- Clicar na imagem abre a SÉRIE -->
-                <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
-                
-                <div class="serie-info">
-                    <!-- Clicar no nome abre a SÉRIE -->
-                    <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
-                    <span class="serie-ep-info">T${tForm} | E${eForm}</span>
-                    <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
+            listaContainer.innerHTML += `
+                <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
+                    <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
+                    <div class="serie-info">
+                        <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
+                        <span class="serie-ep-info">T${tForm} | E${eForm}</span>
+                        <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
+                    </div>
+                    <div class="serie-action">
+                        <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
+                    </div>
+                </div>`;
+        });
+
+    } else {
+        
+        // --- MODO GRADE (BANNERS COM PROGRESSO) ---
+        let gradeHtml = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 30px;">';
+        
+        minhasSeries.forEach(serie => {
+            const img = serie.posterUrl 
+                ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${serie.nome}</div>`;
+            
+            // Cálculo visual da barra de progresso
+            let qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
+            let porcentagem = 0;
+            if (qtdVistos > 0) {
+                // Simulação: Aumenta a barra baseado na quantidade vista (limitado a 95% para não parecer 100% finalizado a menos que tratemos depois)
+                porcentagem = Math.min((qtdVistos * 5), 95); 
+            }
+
+            gradeHtml += `
+                <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesSerie(${serie.id})">
+                    ${img}
+                    
+                    <!-- Sombra na base para destacar a barra amarela -->
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
+                    
+                    <!-- Fundo da barra de progresso (Cinza escuro) -->
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
+                        <!-- Progresso real (Amarelo) -->
+                        <div style="width: ${porcentagem}%; height: 100%; background: #ffcc00;"></div>
+                    </div>
                 </div>
-                
-                <div class="serie-action">
-                    <!-- Clicar no check marca o episódio direto daqui -->
-                    <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
-                </div>
-            </div>`;
-    });
+            `;
+        });
+        
+        gradeHtml += '</div>';
+        listaContainer.innerHTML += gradeHtml;
+    }
 }
+
 
 
 window.marcarDoCartao = function(id, t, e) {
