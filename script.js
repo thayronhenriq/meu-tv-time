@@ -643,19 +643,24 @@ window.carregarEpisodios = async function(serieId, seasonNum) {
             const tForm = String(seasonNum).padStart(2, '0');
             const eForm = String(ep.episode_number).padStart(2, '0');
             const classeVisto = vistos.includes(`${seasonNum}-${ep.episode_number}`) ? 'visto' : '';
+            
+            // Aqui é onde o cartão se torna clicável e o botão de check ganha o stopPropagation
             html += `
-                <div class="ep-card">
+                <div class="ep-card" style="cursor:pointer;" onclick="abrirDetalhesEpisodio(${serieId}, ${seasonNum}, ${ep.episode_number})">
                     <img src="${img}" class="ep-img" style="background:#333;">
                     <div class="ep-info">
                         <div style="font-weight:bold; font-size:14px;">T${tForm} | E${eForm}</div>
                         <div style="font-size:12px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${ep.name}</div>
                     </div>
-                    <button class="ep-check ${classeVisto}" data-ep="${ep.episode_number}" onclick="toggleEpisodioVisto(${serieId}, ${seasonNum}, ${ep.episode_number}, this)">✓</button>
+                    <button class="ep-check ${classeVisto}" data-ep="${ep.episode_number}" onclick="event.stopPropagation(); toggleEpisodioVisto(${serieId}, ${seasonNum}, ${ep.episode_number}, this)">✓</button>
                 </div>`;
         });
         container.innerHTML = html;
-    } catch(e) { container.innerHTML = '<p>Erro.</p>'; }
+    } catch(e) { 
+        container.innerHTML = '<p>Erro.</p>'; 
+    }
 };
+
 
 window.toggleEpisodioVisto = function(serieId, tempNum, epNum, btn) {
     let serie = minhasSeries.find(s => s.id === serieId);
