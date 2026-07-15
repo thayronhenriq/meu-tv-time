@@ -23,14 +23,24 @@
 
     </div>
 
-    <!-- ================= TELA 1: SÉRIES ================= -->
-    <main id="tela-series">
-        <header class="top-tabs">
-            <button class="tab-btn active">MINHA LISTA</button>
-            <button class="tab-btn">EM BREVE</button>
-        </header>
+<!-- ================= TELA 1: SÉRIES ================= -->
+<main id="tela-series">
+    <header class="top-tabs">
+        <button id="aba-minha-lista" class="tab-btn active" onclick="mudarAbaSeries('lista')">MINHA LISTA</button>
+        <button id="aba-em-breve" class="tab-btn" onclick="mudarAbaSeries('embreve')">EM BREVE</button>
+    </header>
+
+    <!-- CONTEÚDO DA LISTA DE SÉRIES (O QUE VOCÊ JÁ TEM) -->
+    <div id="conteudo-minha-lista">
         <div id="lista-series"></div>
-    </main>
+    </div>
+
+    <!-- CONTEÚDO DO CALENDÁRIO (NOVO) -->
+    <div id="conteudo-em-breve" class="escondido">
+        <div id="lista-em-breve"></div>
+    </div>
+</main>
+
 
     <!-- ================= TELA 2: FILMES (NOVA) ================= -->
     <main id="tela-filmes" class="escondido">
