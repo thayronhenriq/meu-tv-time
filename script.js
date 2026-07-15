@@ -195,6 +195,14 @@ window.alternarModoExibicao = function() {
     localStorage.setItem('modoTvTimeExibicao', modoExibicaoMinhaLista);
     renderizarSeries(); // Manda desenhar a tela de novo instantaneamente
 };
+// ================= ALTERNAR MODO DE EXIBIÇÃO (FILMES) =================
+let modoExibicaoFilmes = localStorage.getItem('modoTvTimeFilmesExibicao') || 'lista';
+
+window.alternarModoExibicaoFilmes = function() {
+    modoExibicaoFilmes = modoExibicaoFilmes === 'lista' ? 'grade' : 'lista';
+    localStorage.setItem('modoTvTimeFilmesExibicao', modoExibicaoFilmes);
+    renderizarFilmes(); 
+};
 
 
 // ================= 2. RENDERIZAR MINHA LISTA (SÉRIES) =================
@@ -310,28 +318,65 @@ function renderizarFilmes() {
     if (!listaContainer) return;
     listaContainer.innerHTML = '';
 
+    // 1. Desenha o Botão de Alternar no topo direito
+    const iconeBotao = modoExibicaoFilmes === 'lista' ? '⊞' : '☰'; 
+    const corBotao = modoExibicaoFilmes === 'grade' ? '#ffcc00' : '#888';
+    
+    listaContainer.innerHTML += `
+        <div style="display: flex; justify-content: flex-end; padding: 10px 15px;">
+            <button onclick="alternarModoExibicaoFilmes()" style="background: none; border: 1px solid #333; border-radius: 5px; color: ${corBotao}; font-size: 22px; cursor: pointer; padding: 2px 10px; display: flex; align-items: center; justify-content: center; height: 35px;">
+                ${iconeBotao}
+            </button>
+        </div>
+    `;
+
     if(meusFilmes.length === 0) {
-        listaContainer.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum filme adicionado.</p>';
+        listaContainer.innerHTML += '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum filme adicionado.</p>';
         return;
     }
 
-    meusFilmes.forEach(filme => {
-        const img = filme.posterUrl ? `<img src="${filme.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
-        const classeVisto = filme.visto ? 'visto' : '';
+    if (modoExibicaoFilmes === 'lista') {
+        // --- MODO LISTA ---
+        meusFilmes.forEach(filme => {
+            const img = filme.posterUrl ? `<img src="${filme.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+            const classeVisto = filme.visto ? 'visto' : '';
 
-        listaContainer.innerHTML += `
-            <div class="serie-card" onclick="abrirDetalhesFilme(${filme.id})">
-                <div class="img-container">${img}</div>
-                <div class="serie-info">
-                    <span class="serie-tag">${filme.nome} <i>&gt;</i></span>
-                    <span class="serie-ep-title" style="color:#aaa; font-size:12px; margin-top:5px;">Filme</span>
+            listaContainer.innerHTML += `
+                <div class="serie-card" onclick="abrirDetalhesFilme(${filme.id})">
+                    <div class="img-container">${img}</div>
+                    <div class="serie-info">
+                        <span class="serie-tag">${filme.nome} <i>&gt;</i></span>
+                        <span class="serie-ep-title" style="color:#aaa; font-size:12px; margin-top:5px;">Filme</span>
+                    </div>
+                    <div class="serie-action">
+                        <button class="check-btn ${classeVisto}" onclick="event.stopPropagation(); toggleFilmeDireto(${filme.id}, this)">✓</button>
+                    </div>
+                </div>`;
+        });
+    } else {
+        // --- MODO GRADE ---
+        let gradeHtml = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 30px;">';
+        
+        meusFilmes.forEach(filme => {
+            const img = filme.posterUrl 
+                ? `<img src="${filme.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${filme.nome}</div>`;
+            
+            // Fundo verde se o filme estiver como visto
+            const corFundoVisto = filme.visto ? '#78b833' : '#333';
+
+            gradeHtml += `
+                <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesFilme(${filme.id})">
+                    ${img}
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 6px; background: ${corFundoVisto};"></div>
                 </div>
-                <div class="serie-action">
-                    <button class="check-btn ${classeVisto}" onclick="event.stopPropagation(); toggleFilmeDireto(${filme.id}, this)">✓</button>
-                </div>
-            </div>`;
-    });
+            `;
+        });
+        gradeHtml += '</div>';
+        listaContainer.innerHTML += gradeHtml;
+    }
 }
+
 
 window.toggleFilmeDireto = function(id, btn) {
     let filme = meusFilmes.find(f => f.id === id);
