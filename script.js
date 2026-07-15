@@ -1398,13 +1398,14 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
         // Desenha a tela
         conteudo.innerHTML = `
             <!-- CONTAINER DA IMAGEM COM OS BOTÕES DO CARROSSEL -->
-            <div style="position:relative; height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px;">
+            <div style="position:relative; height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px; z-index: 1;">
                 ${btnPrevHtml}
                 ${btnNextHtml}
             </div>
             
-            <div style="padding: 20px; margin-top: -30px;">
-                <div onclick="fecharDetalhesEpisodio(); abrirDetalhesSerie(${serieId})" style="display:inline-block; border: 1px solid #555; border-radius: 15px; padding: 3px 10px; font-size: 11px; font-weight: bold; margin-bottom: 15px; color: #ccc; cursor:pointer;">
+            <!-- CAIXA DE TEXTO (AQUI ESTÁ A CORREÇÃO DE Z-INDEX) -->
+            <div style="padding: 20px; margin-top: -30px; position: relative; z-index: 2;">
+                <div onclick="fecharDetalhesEpisodio(); abrirDetalhesSerie(${serieId})" style="display:inline-block; border: 1px solid #555; border-radius: 15px; padding: 3px 10px; font-size: 11px; font-weight: bold; margin-bottom: 15px; color: #ccc; cursor:pointer; background: #000;">
                     ${serieData.name.toUpperCase()} &gt;
                 </div>
                 
@@ -1438,6 +1439,7 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
         conteudo.innerHTML = '<p style="text-align:center; margin-top:50px;">Erro de conexão ao carregar o episódio.</p>';
     }
 };
+
 
 
 window.fecharDetalhesEpisodio = function() {
