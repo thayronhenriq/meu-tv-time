@@ -1696,14 +1696,17 @@ window.importarEpisodiosVistos = function(event) {
         const lines = text.split(/\r?\n/);
         if (lines.length < 2) return alert("O arquivo parece estar vazio.");
 
-        // Identifica onde estão as colunas importantes no cabeçalho
-        const headers = lines[0].toLowerCase().split(',');
-        const idxNome = headers.findIndex(h => h.includes('tv_show_name') || h.includes('nome'));
-        const idxTemp = headers.findIndex(h => h.includes('episode_season_number') || h.includes('season'));
-        const idxEp = headers.findIndex(h => h.includes('episode_number') || h.includes('episodio') || h.includes('episode'));
+        // Limpa a primeira linha e separa os nomes das colunas
+        const headers = lines[0].toLowerCase().replace(/\./g, '').split(',');
 
+        // BUSCA AS COLUNAS EXATAS DO SEU ARQUIVO
+        const idxNome = headers.findIndex(h => h === 'series_name' || h.includes('tv_show_name') || h.includes('nome'));
+        const idxTemp = headers.findIndex(h => h === 'season_number' || h.includes('season') || h === 's_no');
+        const idxEp = headers.findIndex(h => h === 'episode_number' || h === 'ep_no' || h.includes('episode'));
+
+        // Se faltar alguma, avisa qual foi para facilitar o rastreio
         if (idxNome === -1 || idxTemp === -1 || idxEp === -1) {
-            return alert("Colunas não encontradas. Verifique se é o arquivo 'tracking-prod-records-v2.csv'.");
+            return alert(`Colunas não encontradas!\nNome: ${idxNome}, Temporada: ${idxTemp}, Episódio: ${idxEp}\nVerifique se é o arquivo correto.`);
         }
 
         let adicionados = 0;
@@ -1724,6 +1727,12 @@ window.importarEpisodiosVistos = function(event) {
 
             // Busca a série na sua lista local
             let serie = minhasSeries.find(s => s.nome.toUpperCase() === nomeRaw);
+            
+            // Se não achar de primeira, tenta buscar ignorando caracteres especiais e pontuações
+            if (!serie) {
+                serie = minhasSeries.find(s => s.nome.toUpperCase().replace(/[^A-Z0-9]/g, '') === nomeRaw.replace(/[^A-Z0-9]/g, ''));
+            }
+
             if (serie) {
                 if (!serie.episodiosVistos) serie.episodiosVistos = [];
                 const epId = `${temp}-${ep}`;
@@ -1732,7 +1741,7 @@ window.importarEpisodiosVistos = function(event) {
                 if (!serie.episodiosVistos.includes(epId)) {
                     serie.episodiosVistos.push(epId);
                     
-                    // Opcional: Atualiza o carimbo de tempo para organizar o "Assistir a Seguir"
+                    // Atualiza o carimbo de tempo para organizar o "Assistir a Seguir"
                     serie.ultimaAtualizacao = Date.now();
                     
                     adicionados++;
@@ -1752,4 +1761,3 @@ window.importarEpisodiosVistos = function(event) {
     // Lê o arquivo como texto
     reader.readAsText(file);
 };
-
