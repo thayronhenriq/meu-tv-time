@@ -1330,7 +1330,7 @@ window.fecharGradePerfil = function() {
     document.getElementById('tela-grade-generica').classList.add('escondido');
 };
 
-// ================= 17. DETALHES DO EPISÓDIO =================
+// ================= 17. DETALHES DO EPISÓDIO (COM NAVEGAÇÃO) =================
 
 window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
     const tela = document.getElementById('tela-detalhes-episodio');
@@ -1339,13 +1339,48 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
     conteudo.innerHTML = '<p style="text-align:center; margin-top:50px; color:#888;">Carregando episódio...</p>';
 
     try {
-        // Busca os dados específicos do episódio
+        // Busca os dados do episódio e da série
         const resp = await fetch(`${BASE_URL}/tv/${serieId}/season/${seasonNum}/episode/${epNum}?api_key=${API_KEY}&language=pt-BR`);
         const ep = await resp.json();
         
-        // Busca o nome da série
         const respSerie = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR`);
         const serieData = await respSerie.json();
+
+        // ================= LÓGICA DO CARROSSEL (ANTERIOR / PRÓXIMO) =================
+        const temporadaAtual = serieData.seasons.find(s => s.season_number === seasonNum);
+        const totalEpsTemporada = temporadaAtual ? temporadaAtual.episode_count : 999;
+
+        let prevTemp = seasonNum, prevEp = epNum - 1, hasPrev = true;
+        let nextTemp = seasonNum, nextEp = epNum + 1, hasNext = true;
+
+        // Calcula o episódio ANTERIOR
+        if (prevEp < 1) {
+            if (seasonNum > 1) {
+                prevTemp = seasonNum - 1;
+                const tempAnterior = serieData.seasons.find(s => s.season_number === prevTemp);
+                if (tempAnterior && tempAnterior.episode_count > 0) prevEp = tempAnterior.episode_count;
+                else hasPrev = false;
+            } else {
+                hasPrev = false; // É o T01E01, não tem anterior
+            }
+        }
+
+        // Calcula o PRÓXIMO episódio
+        if (nextEp > totalEpsTemporada) {
+            const tempSeguinte = serieData.seasons.find(s => s.season_number === seasonNum + 1);
+            if (tempSeguinte && tempSeguinte.episode_count > 0) {
+                nextTemp = seasonNum + 1;
+                nextEp = 1; // Pula para o E01 da próxima temporada
+            } else {
+                hasNext = false; // É o último episódio da série (ou da temporada atual disponível)
+            }
+        }
+
+        // Monta os botões flutuantes (só aparecem se existir episódio)
+        const btnPrevHtml = hasPrev ? `<button onclick="abrirDetalhesEpisodio(${serieId}, ${prevTemp}, ${prevEp})" style="position:absolute; left:15px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:white; border:none; width:45px; height:45px; border-radius:50%; font-size:20px; z-index:10; cursor:pointer;">❮</button>` : '';
+        const btnNextHtml = hasNext ? `<button onclick="abrirDetalhesEpisodio(${serieId}, ${nextTemp}, ${nextEp})" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:white; border:none; width:45px; height:45px; border-radius:50%; font-size:20px; z-index:10; cursor:pointer;">❯</button>` : '';
+        // ==============================================================================
+
 
         // Organiza as informações visuais
         const img = ep.still_path ? `${IMG_URL}${ep.still_path}` : (serieData.backdrop_path ? `${IMG_URL}${serieData.backdrop_path}` : '');
@@ -1362,26 +1397,25 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
 
         // Desenha a tela
         conteudo.innerHTML = `
-            <div style="height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px;"></div>
+            <!-- CONTAINER DA IMAGEM COM OS BOTÕES DO CARROSSEL -->
+            <div style="position:relative; height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px;">
+                ${btnPrevHtml}
+                ${btnNextHtml}
+            </div>
             
             <div style="padding: 20px; margin-top: -30px;">
-                <!-- Nome da Série (Clicável) -->
                 <div onclick="fecharDetalhesEpisodio(); abrirDetalhesSerie(${serieId})" style="display:inline-block; border: 1px solid #555; border-radius: 15px; padding: 3px 10px; font-size: 11px; font-weight: bold; margin-bottom: 15px; color: #ccc; cursor:pointer;">
                     ${serieData.name.toUpperCase()} &gt;
                 </div>
                 
-                <!-- Info do Episódio (AQUI ESTÁ A CORREÇÃO DA BARRA VERTICAL) -->
                 <h2 style="font-size:26px; font-weight:bold; margin-bottom: 5px;">T${tForm} | E${eForm}</h2>
                 <h3 style="font-size:16px; color:#aaa; font-weight: normal; margin-bottom: 20px;">${tituloEpisodio}</h3>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
                     <div style="font-size: 13px; color: #888;">📅 ${dataAr}</div>
-                        
-                    <!-- Botão Marcar como Visto (Redondo) -->
                     <button onclick="marcarEpisodioDetalhe(${serieId}, ${seasonNum}, ${epNum}, this)" style="background: ${corBotao}; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">✓</button>
                 </div>
 
-                <!-- SEÇÃO VISUAL: AVALIAR -->
                 <div style="text-align: center; margin-bottom: 30px;">
                     <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">AVALIAR ESTE EPISÓDIO</h4>
                     <div style="display: flex; justify-content: center; gap: 15px; font-size: 26px; color: #ffcc00;">
@@ -1389,7 +1423,6 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
                     </div>
                 </div>
 
-                <!-- SEÇÃO VISUAL: SENTIMENTOS -->
                 <div style="text-align: center; margin-bottom: 30px;">
                     <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">COMO VOCÊ SE SENTIU?</h4>
                     <div style="display: flex; justify-content: center; gap: 12px; font-size: 32px;">
@@ -1405,6 +1438,7 @@ window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
         conteudo.innerHTML = '<p style="text-align:center; margin-top:50px;">Erro de conexão ao carregar o episódio.</p>';
     }
 };
+
 
 window.fecharDetalhesEpisodio = function() {
     document.getElementById('tela-detalhes-episodio').classList.add('escondido');
