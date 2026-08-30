@@ -1110,9 +1110,8 @@ renderizarFavoritos();
 renderizarListasPerfil();
 atualizarEstatisticas();
 renderizarImagensPerfil(); 
-// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME (COM PROGRESSO VISUAL) =================
+// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME =================
 
-// Função auxiliar interna para atualizar a barra e o texto na tela
 function atualizarProgressoVisual(atual, total, mensagemCustomizada = '') {
     const containerProgresso = document.getElementById('container-progresso');
     const textoStatus = document.getElementById('texto-status-progresso');
@@ -1129,7 +1128,7 @@ function atualizarProgressoVisual(atual, total, mensagemCustomizada = '') {
 }
 
 // ----------------------------------------------------------------------
-// 1. IMPORTAR LISTA DE SÉRIES (Com Progresso)
+// 1. IMPORTAR LISTA DE SÉRIES
 // ----------------------------------------------------------------------
 const inputCsvTvTime = document.getElementById('input-csv-tvtime');
 
@@ -1173,7 +1172,6 @@ if (inputCsvTvTime) {
 
             for (let i = 0; i < totalSeries; i++) {
                 const nomeBusca = seriesParaImportar[i];
-                
                 atualizarProgressoVisual(i + 1, totalSeries, `Importando série: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
                 try {
@@ -1212,7 +1210,7 @@ if (inputCsvTvTime) {
             const containerProgresso = document.getElementById('container-progresso');
             if (containerProgresso) containerProgresso.classList.add('escondido');
 
-            alert(`Importação de séries concluída!\n• ${adicionadas} novas séries adicionadas.`);
+            alert(`Importação de séries concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
             inputCsvTvTime.value = ''; 
         };
 
@@ -1222,7 +1220,7 @@ if (inputCsvTvTime) {
 
 
 // ----------------------------------------------------------------------
-// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (Com Progresso)
+// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (Com mapeamento seguro de colunas)
 // ----------------------------------------------------------------------
 async function importarEpisodiosVistos(evento) {
     const arquivo = evento.target.files[0];
@@ -1243,23 +1241,18 @@ async function importarEpisodiosVistos(evento) {
             return linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.trim().replace(/^"|"$/g, ''));
         }
 
-        const cabecalho = separarLinhaCSV(linhas[0]).map(col => col.toLowerCase());
+        const cabecalho = separarLinhaCSV(linhas[0]).map(col => col.toLowerCase().trim());
+        console.log("Cabeçalhos encontrados:", cabecalho); // Ajuda a debugar no F12 se precisar
         
-        let idxSerie = cabecalho.indexOf('series_name');
-        if (idxSerie === -1) idxSerie = cabecalho.indexOf('tv_show_name');
+        // Buscas exatas e flexíveis para os nomes de colunas do TV Time
+        let idxSerie = cabecalho.findIndex(c => c.includes('series') || c.includes('show') || c.includes('name'));
+        let idxTemporada = cabecalho.findIndex(c => c.includes('season') || c.includes('s_no') || c.includes('temporada'));
+        let idxEpisodio = cabecalho.findIndex(c => c.includes('episode') || c.includes('ep_no') || c.includes('episodio'));
 
-        let idxTemporada = cabecalho.indexOf('season_number');
-        if (idxTemporada === -1) idxTemporada = cabecalho.indexOf('s_no');
-
-        let idxEpisodio = cabecalho.indexOf('episode_number');
-        if (idxEpisodio === -1) idxEpisodio = cabecalho.indexOf('ep_no');
-
-        if (idxSerie === -1) {
-            alert('Não foi possível identificar a coluna de séries no arquivo tracking.');
-            return;
-        }
+        if (idxSerie === -1) idxSerie = 0; // Fallback padrão para a primeira coluna
 
         const mapaSeriesEpisodios = {};
+        let totalEpisodiosLidos = 0;
 
         for (let i = 1; i < linhas.length; i++) {
             const linha = linhas[i].trim();
@@ -1268,19 +1261,21 @@ async function importarEpisodiosVistos(evento) {
             const colunas = separarLinhaCSV(linha);
             const nomeSerie = colunas[idxSerie];
 
-            if (!nomeSerie || nomeSerie.toLowerCase() === 'series_name' || nomeSerie.toLowerCase() === 'tv_show_name') continue;
+            if (!nomeSerie || nomeSerie.toLowerCase().includes('name') || nomeSerie.toLowerCase().includes('show')) continue;
 
             if (!mapaSeriesEpisodios[nomeSerie]) {
                 mapaSeriesEpisodios[nomeSerie] = new Set();
             }
 
-            if (idxTemporada !== -1 && idxEpisodio !== -1 && colunas[idxTemporada] && colunas[idxEpisodio]) {
+            if (idxTemporada !== -1 && idxEpisodio !== -1 && colunas[idxTemporada] !== undefined && colunas[idxEpisodio] !== undefined) {
                 const tempNum = parseInt(colunas[idxTemporada], 10);
                 const epNum = parseInt(colunas[idxEpisodio], 10);
 
-                if (!isNaN(tempNum) && !isNaN(epNum)) {
+                // Validação estricta: Temporadas e episódios reais não passam de 3 dígitos (evita pegar IDs gigantes de tracking)
+                if (!isNaN(tempNum) && !isNaN(epNum) && tempNum > 0 && tempNum < 100 && epNum > 0 && epNum < 999) {
                     const epCodigo = `S${String(tempNum).padStart(2, '0')}E${String(epNum).padStart(2, '0')}`;
                     mapaSeriesEpisodios[nomeSerie].add(epCodigo);
+                    totalEpisodiosLidos++;
                 }
             }
         }
@@ -1289,7 +1284,7 @@ async function importarEpisodiosVistos(evento) {
         const totalSeries = listaNomesSeries.length;
 
         if (totalSeries === 0) {
-            alert('Nenhum episódio encontrado no arquivo.');
+            alert('Nenhum episódio válido encontrado. Verifique se escolheu o arquivo correto de tracking.');
             return;
         }
 
@@ -1300,7 +1295,7 @@ async function importarEpisodiosVistos(evento) {
             const nomeBusca = listaNomesSeries[i];
             const epsImportados = Array.from(mapaSeriesEpisodios[nomeBusca]);
 
-            atualizarProgressoVisual(i + 1, totalSeries, `Sincronizando episódios: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
+            atualizarProgressoVisual(i + 1, totalSeries, `Sincronizando: ${i + 1} de ${totalSeries} séries (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
             try {
                 const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
@@ -1308,11 +1303,11 @@ async function importarEpisodiosVistos(evento) {
 
                 if (dados.results && dados.results.length > 0) {
                     const serieTMDB = dados.results[0];
-                    const jaExiste = minhasSeries.find(s => s.id === serieTMDB.id);
+                    let serieNaLista = minhasSeries.find(s => s.id === serieTMDB.id);
 
-                    if (jaExiste) {
-                        const epsAnteriores = jaExiste.episodiosVistos || [];
-                        jaExiste.episodiosVistos = Array.from(new Set([...epsAnteriores, ...epsImportados]));
+                    if (serieNaLista) {
+                        const epsAnteriores = serieNaLista.episodiosVistos || [];
+                        serieNaLista.episodiosVistos = Array.from(new Set([...epsAnteriores, ...epsImportados]));
                         atualizadas++;
                     } else {
                         const posterUrlPath = serieTMDB.poster_path ? `${IMG_URL}${serieTMDB.poster_path}` : '';
@@ -1331,10 +1326,16 @@ async function importarEpisodiosVistos(evento) {
                 console.log('Erro ao buscar série no TMDB:', nomeBusca);
             }
 
-            await new Promise(resolve => setTimeout(resolve, 350)); // ✅ Corrigido para Promise
+            await new Promise(resolve => setTimeout(resolve, 350));
         }
 
-        salvarSeries();
+        // Força salvamento persistente imediato
+        if (typeof salvarSeries === 'function') {
+            salvarSeries();
+        } else {
+            localStorage.setItem('minhasSeries', JSON.stringify(minhasSeries));
+        }
+
         if (typeof renderizarSeries === 'function') renderizarSeries();
         if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
         if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
@@ -1342,13 +1343,14 @@ async function importarEpisodiosVistos(evento) {
         const containerProgresso = document.getElementById('container-progresso');
         if (containerProgresso) containerProgresso.classList.add('escondido');
 
-        alert(`Importação de Episódios concluída!\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas.`);
+        alert(`Sucesso absoluto!\n• ${totalEpisodiosLidos} episódios válidos mapeados.\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas.`);
         
         evento.target.value = '';
     };
 
     leitor.readAsText(arquivo);
 }
+
 // ================= 15. TELA DE "TODAS AS SÉRIES" E FILTROS =================
 
 let sortAtual = 'adicionados'; 
