@@ -1241,9 +1241,15 @@ async function importarEpisodiosVistos(evento) {
         console.log("Cabeçalhos encontrados:", cabecalho); // Ajuda a debugar no F12 se precisar
         
         // Buscas exatas e flexíveis para os nomes de colunas do TV Time
-        let idxSerie = cabecalho.findIndex(c => c.includes('series') || c.includes('show') || c.includes('name'));
-        let idxTemporada = cabecalho.findIndex(c => c.includes('season') || c.includes('s_no') || c.includes('temporada'));
-        let idxEpisodio = cabecalho.findIndex(c => c.includes('episode') || c.includes('ep_no') || c.includes('episodio'));
+        // Busca EXATA primeiro (evita pegar "episode_id" por engano) e só usa busca flexível como último recurso
+        let idxSerie = cabecalho.findIndex(c => c === 'series_name' || c === 'show_name') ;
+        if (idxSerie === -1) idxSerie = cabecalho.findIndex(c => c.includes('series') || c.includes('show') || c.includes('name'));
+
+        let idxTemporada = cabecalho.findIndex(c => c === 'season_number' || c === 's_no');
+        if (idxTemporada === -1) idxTemporada = cabecalho.findIndex(c => c.includes('season') || c.includes('temporada'));
+
+        let idxEpisodio = cabecalho.findIndex(c => c === 'episode_number' || c === 'ep_no');
+        if (idxEpisodio === -1) idxEpisodio = cabecalho.findIndex(c => (c.includes('episode') || c.includes('episodio')) && !c.includes('id'));
 
         if (idxSerie === -1) idxSerie = 0; // Fallback padrão para a primeira coluna
 
