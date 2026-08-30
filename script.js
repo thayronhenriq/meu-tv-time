@@ -1130,10 +1130,7 @@ function atualizarProgressoVisual(atual, total, mensagemCustomizada = '') {
 // ----------------------------------------------------------------------
 // 1. IMPORTAR LISTA DE SÉRIES
 // ----------------------------------------------------------------------
-const inputCsvTvTime = document.getElementById('input-csv-tvtime');
-
-if (inputCsvTvTime) {
-    inputCsvTvTime.addEventListener('change', function(evento) {
+window.importarSeries = function(evento) {
         const arquivo = evento.target.files[0];
         if (!arquivo) return;
 
@@ -1211,12 +1208,11 @@ if (inputCsvTvTime) {
             if (containerProgresso) containerProgresso.classList.add('escondido');
 
             alert(`Importação de séries concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
-            inputCsvTvTime.value = ''; 
+            evento.target.value = ''; 
         };
 
         leitor.readAsText(arquivo);
-    });
-}
+};
 
 
 // ----------------------------------------------------------------------
@@ -1836,85 +1832,6 @@ window.marcarEpisodioEmBreve = function(serieId, tempNum, epNum, btn) {
         atualizarEstatisticas();
         renderizarSeries(); // Atualiza a aba Minha Lista silenciosamente no fundo
     }
-};
-
-// ================= IMPORTAR EPISÓDIOS ASSISTIDOS (TV TIME) =================
-
-window.importarEpisodiosVistos = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target.result;
-        // Divide o arquivo linha por linha
-        const lines = text.split(/\r?\n/);
-        if (lines.length < 2) return alert("O arquivo parece estar vazio.");
-
-        // Limpa a primeira linha e separa os nomes das colunas
-        const headers = lines[0].toLowerCase().replace(/\./g, '').split(',');
-
-        // BUSCA AS COLUNAS EXATAS DO SEU ARQUIVO
-        const idxNome = headers.findIndex(h => h === 'series_name' || h.includes('tv_show_name') || h.includes('nome'));
-        const idxTemp = headers.findIndex(h => h === 'season_number' || h.includes('season') || h === 's_no');
-        const idxEp = headers.findIndex(h => h === 'episode_number' || h === 'ep_no' || h.includes('episode'));
-
-        // Se faltar alguma, avisa qual foi para facilitar o rastreio
-        if (idxNome === -1 || idxTemp === -1 || idxEp === -1) {
-            return alert(`Colunas não encontradas!\nNome: ${idxNome}, Temporada: ${idxTemp}, Episódio: ${idxEp}\nVerifique se é o arquivo correto.`);
-        }
-
-        let adicionados = 0;
-
-        // Processa cada linha do arquivo
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            
-            // Regex inteligente para ler CSV (ignora vírgulas dentro de aspas)
-            const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            if (row.length < 3) continue;
-
-            const nomeRaw = row[idxNome] ? row[idxNome].replace(/(^"|"$)/g, '').trim().toUpperCase() : '';
-            const temp = row[idxTemp] ? row[idxTemp].replace(/(^"|"$)/g, '').trim() : '';
-            const ep = row[idxEp] ? row[idxEp].replace(/(^"|"$)/g, '').trim() : '';
-
-            if (!nomeRaw || !temp || !ep) continue;
-
-            // Busca a série na sua lista local
-            let serie = minhasSeries.find(s => s.nome.toUpperCase() === nomeRaw);
-            
-            // Se não achar de primeira, tenta buscar ignorando caracteres especiais e pontuações
-            if (!serie) {
-                serie = minhasSeries.find(s => s.nome.toUpperCase().replace(/[^A-Z0-9]/g, '') === nomeRaw.replace(/[^A-Z0-9]/g, ''));
-            }
-
-            if (serie) {
-                if (!serie.episodiosVistos) serie.episodiosVistos = [];
-                const epId = `${temp}-${ep}`;
-                
-                // Marca o episódio se ainda não estiver marcado
-                if (!serie.episodiosVistos.includes(epId)) {
-                    serie.episodiosVistos.push(epId);
-                    
-                    // Atualiza o carimbo de tempo para organizar o "Assistir a Seguir"
-                    serie.ultimaAtualizacao = Date.now();
-                    
-                    adicionados++;
-                }
-            }
-        }
-
-        // Salva tudo e atualiza as telas
-        localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
-        if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
-        if (typeof renderizarSeries === 'function') renderizarSeries();
-
-        alert(`Sucesso absoluto! ${adicionados} episódios foram marcados como assistidos em um piscar de olhos.`);
-        event.target.value = ''; // Limpa o input para permitir nova importação
-    };
-    
-    // Lê o arquivo como texto
-    reader.readAsText(file);
 };
 
 // ================= FUNÇÕES DO MENU E TELA DE IMPORTAÇÃO =================
