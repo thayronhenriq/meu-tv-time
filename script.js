@@ -1174,7 +1174,6 @@ if (inputCsvTvTime) {
             for (let i = 0; i < totalSeries; i++) {
                 const nomeBusca = seriesParaImportar[i];
                 
-                // Atualiza a barra de progresso antes de buscar cada série
                 atualizarProgressoVisual(i + 1, totalSeries, `Importando série: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
                 try {
@@ -1210,7 +1209,6 @@ if (inputCsvTvTime) {
             if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
             
-            // Esconde a barra e avisa conclusão
             const containerProgresso = document.getElementById('container-progresso');
             if (containerProgresso) containerProgresso.classList.add('escondido');
 
@@ -1302,7 +1300,6 @@ async function importarEpisodiosVistos(evento) {
             const nomeBusca = listaNomesSeries[i];
             const epsImportados = Array.from(mapaSeriesEpisodios[nomeBusca]);
 
-            // Atualiza a barra de progresso visual
             atualizarProgressoVisual(i + 1, totalSeries, `Sincronizando episódios: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
             try {
@@ -1334,7 +1331,7 @@ async function importarEpisodiosVistos(evento) {
                 console.log('Erro ao buscar série no TMDB:', nomeBusca);
             }
 
-            await new Progress(resolve => setTimeout(resolve, 350)); // Corrigido levemente para timeout normal
+            await new Promise(resolve => setTimeout(resolve, 350)); // ✅ Corrigido para Promise
         }
 
         salvarSeries();
@@ -1342,7 +1339,6 @@ async function importarEpisodiosVistos(evento) {
         if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
         if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
 
-        // Esconde a barra e avisa conclusão
         const containerProgresso = document.getElementById('container-progresso');
         if (containerProgresso) containerProgresso.classList.add('escondido');
 
