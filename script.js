@@ -1275,7 +1275,7 @@ async function importarEpisodiosVistos(evento) {
 
                 // Validação estricta: Temporadas e episódios reais não passam de 3 dígitos (evita pegar IDs gigantes de tracking)
                 if (!isNaN(tempNum) && !isNaN(epNum) && tempNum > 0 && tempNum < 100 && epNum > 0 && epNum < 999) {
-                    const epCodigo = `S${String(tempNum).padStart(2, '0')}E${String(epNum).padStart(2, '0')}`;
+                    const epCodigo = `${tempNum}-${epNum}`;
                     mapaSeriesEpisodios[nomeSerie].add(epCodigo);
                     totalEpisodiosLidos++;
                 }
