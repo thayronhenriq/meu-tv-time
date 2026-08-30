@@ -212,6 +212,54 @@ window.alternarModoExibicaoFilmes = function() {
 
 
 // ================= 2. RENDERIZAR MINHA LISTA (SÉRIES) =================
+// ================= SINCRONIZAR PROGRESSO (Temporadas/Episódios reais do TMDB) =================
+window.sincronizarProgressoSeries = async function() {
+    if (!minhasSeries || minhasSeries.length === 0) return;
+
+    const total = minhasSeries.length;
+    const tamanhoDoLote = 15; // Quantas séries buscamos ao mesmo tempo em cada rodada
+    let processadas = 0;
+
+    atualizarProgressoVisual(0, total, `Sincronizando progresso: 0 de ${total} séries...`);
+
+    for (let inicio = 0; inicio < total; inicio += tamanhoDoLote) {
+        const lote = minhasSeries.slice(inicio, inicio + tamanhoDoLote);
+
+        const promessas = lote.map(serie =>
+            fetch(`${BASE_URL}/tv/${serie.id}?api_key=${API_KEY}&language=pt-BR`)
+                .then(res => res.json())
+                .catch(() => null)
+        );
+
+        const resultados = await Promise.all(promessas);
+
+        resultados.forEach((dados, i) => {
+            if (dados && dados.id) {
+                const serieLocal = lote[i];
+                serieLocal.seasons = dados.seasons || [];
+                serieLocal.status = dados.status || '';
+                serieLocal.number_of_seasons = dados.number_of_seasons || 0;
+            }
+        });
+
+        processadas += lote.length;
+        atualizarProgressoVisual(processadas, total, `Sincronizando progresso: ${processadas} de ${total} séries (${Math.round((processadas/total)*100)}%)`);
+
+        // Pequena pausa entre os lotes pra não sobrecarregar a API do TMDB
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    salvarSeries();
+    if (typeof renderizarSeries === 'function') renderizarSeries();
+    if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
+
+    const containerProgresso = document.getElementById('container-progresso');
+    if (containerProgresso) containerProgresso.classList.add('escondido');
+
+    alert(`Sincronização concluída! Agora o app sabe exatamente quantos episódios cada temporada tem, e as séries já completas vão sair de "Assistir a Seguir".`);
+};
+
+
 function renderizarSeries() {
     const listaContainer = document.getElementById('lista-series');
     if (!listaContainer) return;
@@ -234,26 +282,63 @@ function renderizarSeries() {
         return;
     }
 
-    // 2. Separa as séries nas três categorias
+    // 2. Separa as séries nas categorias
     const assistirASeguir = [];
     const semAssistirTempo = [];
     const naoIniciadas = [];
+    const completas = [];
     
     const trintaDiasEmMs = 30 * 24 * 60 * 60 * 1000;
     const agora = Date.now();
+
+    // Função que calcula qual seria o próximo episódio, e diz se a série já terminou de verdade
+    // (só consegue saber isso com certeza se a série já foi sincronizada com o TMDB via "seasons")
+    const calcularProximoEpisodio = (serie) => {
+        let proxTemp = 1, proxEp = 1, finalizada = false;
+        if (!serie.episodiosVistos || serie.episodiosVistos.length === 0) {
+            return { proxTemp, proxEp, finalizada };
+        }
+
+        let vistos = serie.episodiosVistos.map(v => {
+            let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
+        });
+        vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
+        let ultimoVisto = vistos[vistos.length - 1];
+        proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
+
+        if (serie.seasons && serie.seasons.length > 0) {
+            const temporadaAtual = serie.seasons.find(s => s.season_number === ultimoVisto.t);
+            if (temporadaAtual && proxEp > temporadaAtual.episode_count) {
+                // Já assistiu todos os episódios dessa temporada, tenta ir pra próxima
+                const proxTemporada = serie.seasons.find(s => s.season_number === ultimoVisto.t + 1 && s.episode_count > 0);
+                if (proxTemporada) {
+                    proxTemp = proxTemporada.season_number;
+                    proxEp = 1;
+                } else {
+                    finalizada = true; // Não existe próxima temporada com episódios: já assistiu tudo
+                }
+            }
+        }
+
+        return { proxTemp, proxEp, finalizada };
+    };
 
     minhasSeries.forEach(serie => {
         const qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
         
         if (qtdVistos === 0) {
             naoIniciadas.push(serie);
+            return;
+        }
+
+        const { finalizada } = calcularProximoEpisodio(serie);
+
+        if (finalizada) {
+            completas.push(serie);
+        } else if (serie.ultimaAtualizacao && (agora - serie.ultimaAtualizacao > trintaDiasEmMs)) {
+            semAssistirTempo.push(serie);
         } else {
-            // Se a série tiver um carimbo de tempo e for mais velha que 30 dias
-            if (serie.ultimaAtualizacao && (agora - serie.ultimaAtualizacao > trintaDiasEmMs)) {
-                semAssistirTempo.push(serie);
-            } else {
-                assistirASeguir.push(serie); // Padrão para séries ativas
-            }
+            assistirASeguir.push(serie); // Padrão para séries ativas
         }
     });
 
@@ -271,15 +356,7 @@ function renderizarSeries() {
             
             // --- MODO LISTA (O SEU ORIGINAL) ---
             seriesDoGrupo.forEach(serie => {
-                let proxTemp = 1; let proxEp = 1;
-                if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
-                    let vistos = serie.episodiosVistos.map(v => {
-                        let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
-                    });
-                    vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
-                    let ultimoVisto = vistos[vistos.length - 1];
-                    proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
-                }
+                const { proxTemp, proxEp } = calcularProximoEpisodio(serie);
 
                 const tForm = String(proxTemp).padStart(2, '0');
                 const eForm = String(proxEp).padStart(2, '0');
@@ -342,6 +419,7 @@ function renderizarSeries() {
     listaContainer.innerHTML += gerarHTMLGrupo('ASSISTIR A SEGUIR', assistirASeguir);
     listaContainer.innerHTML += gerarHTMLGrupo('SEM ASSISTIR HÁ ALGUM TEMPO', semAssistirTempo);
     listaContainer.innerHTML += gerarHTMLGrupo('NÃO INICIADAS', naoIniciadas);
+    listaContainer.innerHTML += gerarHTMLGrupo('COMPLETAS', completas);
 }
 
 
