@@ -67,26 +67,52 @@
         </div>
     </main>
 
-    <!-- ================= TELA 4: PERFIL ================= -->
-    <main id="tela-perfil" class="escondido">
-        <!-- Cabeçalho do Perfil (Atualizado) -->
-        <div class="perfil-header">
-            <div id="meu-banner-perfil" class="perfil-banner" style="background-color: #333; background-position: center 20%; background-size: cover;"></div>
-            <div class="perfil-info">
-                <div class="perfil-avatar">
-                    <div id="meu-avatar-perfil" class="avatar-placeholder" style="background-position: center; background-size: cover;"></div>
-                    <span class="badge-t">T</span>
-                </div>
-               <div class="perfil-texto">
-    <h2>thayronhenriq</h2>
-    <button class="btn-editar" onclick="abrirModalEditarPerfil()">EDITAR</button>
+<!-- ================= TELA 4: PERFIL ================= -->
+<main id="tela-perfil" class="escondido">
+    <!-- Cabeçalho do Perfil (Atualizado) -->
     
-    <!-- Botão de Sair da Conta -->
-    <button onclick="fazerLogout()" style="background:transparent; color:#c0392b; border:none; margin-top:5px; font-weight:bold; font-size:12px;">Sair da conta</button>
-</div>
-
+    <!-- Adicionei um position: relative aqui caso não tenha no seu CSS, para os 3 pontinhos ficarem no lugar certo -->
+    <div class="perfil-header" style="position: relative;"> 
+        
+        <!-- ================= INÍCIO: MENU 3 PONTINHOS ================= -->
+        <div style="position: absolute; top: 15px; right: 15px; z-index: 50;">
+            <!-- O botão dos 3 pontinhos -->
+            <button onclick="toggleMenuPerfil(event)" style="background: rgba(0,0,0,0.6); border: none; color: white; font-size: 24px; cursor: pointer; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+                ⋮
+            </button>
+            
+            <!-- A caixinha do menu que fica escondida -->
+            <div id="dropdown-perfil" style="display: none; position: absolute; top: 50px; right: 0; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; width: 190px; box-shadow: 0 8px 16px rgba(0,0,0,0.8); overflow: hidden; z-index: 51;">
+                
+                <div onclick="abrirTelaImportacao(); toggleMenuPerfil(event)" style="padding: 15px; border-bottom: 1px solid #333; cursor: pointer; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 10px;">
+                    📥 Importar Dados
+                </div>
+                
+                <!-- Aqui está a sua função fazerLogout() original -->
+                <div onclick="fazerLogout()" style="padding: 15px; cursor: pointer; font-size: 14px; color: #ff4444; display: flex; align-items: center; gap: 10px;">
+                    🚪 Sair da conta
+                </div>
+                
             </div>
         </div>
+        <!-- ================= FIM: MENU 3 PONTINHOS ================= -->
+
+        <div id="meu-banner-perfil" class="perfil-banner" style="background-color: #333; background-position: center 20%; background-size: cover;"></div>
+        
+        <div class="perfil-info">
+            <div class="perfil-avatar">
+                <div id="meu-avatar-perfil" class="avatar-placeholder" style="background-position: center; background-size: cover;"></div>
+                <span class="badge-t">T</span>
+            </div>
+            
+            <div class="perfil-texto">
+                <h2>thayronhenriq</h2>
+                <button class="btn-editar" onclick="abrirModalEditarPerfil()">EDITAR</button>
+                
+                <!-- O botão antigo de 'Sair da conta' foi removido daqui para deixar o visual mais limpo! -->
+            </div>
+        </div>
+    </div>
 
 
 
