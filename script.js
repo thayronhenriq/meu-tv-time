@@ -1761,3 +1761,34 @@ window.importarEpisodiosVistos = function(event) {
     // Lê o arquivo como texto
     reader.readAsText(file);
 };
+
+// ================= FUNÇÕES DO MENU E TELA DE IMPORTAÇÃO =================
+
+// Mostra ou esconde a caixinha dos 3 pontinhos
+function toggleMenuPerfil(event) {
+    if (event) event.stopPropagation(); // Evita que o clique feche o menu imediatamente
+    const menu = document.getElementById('dropdown-perfil');
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'block';
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+// Fecha o menu se o usuário clicar em qualquer outro lugar da tela
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('dropdown-perfil');
+    if (menu && menu.style.display === 'block') {
+        menu.style.display = 'none';
+    }
+});
+
+// Abre a nova página de importação
+function abrirTelaImportacao() {
+    document.getElementById('tela-importacao').classList.remove('escondido');
+}
+
+// Fecha a nova página de importação e volta para onde estava
+function fecharTelaImportacao() {
+    document.getElementById('tela-importacao').classList.add('escondido');
+}
