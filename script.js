@@ -1110,11 +1110,26 @@ renderizarFavoritos();
 renderizarListasPerfil();
 atualizarEstatisticas();
 renderizarImagensPerfil(); 
-// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME =================
+// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME (COM PROGRESSO VISUAL) =================
+
+// Função auxiliar interna para atualizar a barra e o texto na tela
+function atualizarProgressoVisual(atual, total, mensagemCustomizada = '') {
+    const containerProgresso = document.getElementById('container-progresso');
+    const textoStatus = document.getElementById('texto-status-progresso');
+    const barraInterna = document.getElementById('barra-progresso-interna');
+
+    if (containerProgresso) containerProgresso.classList.remove('escondido');
+
+    const porcentagem = total > 0 ? Math.round((atual / total) * 100) : 0;
+
+    if (barraInterna) barraInterna.style.width = `${porcentagem}%`;
+    if (textoStatus) {
+        textoStatus.innerText = mensagemCustomizada || `Processando: ${atual} de ${total} (${porcentagem}%)`;
+    }
+}
 
 // ----------------------------------------------------------------------
-// 1. IMPORTAR APENAS AS SÉRIES (O seu código original)
-// Botão acionado pelo ID 'input-csv-tvtime'
+// 1. IMPORTAR LISTA DE SÉRIES (Com Progresso)
 // ----------------------------------------------------------------------
 const inputCsvTvTime = document.getElementById('input-csv-tvtime');
 
@@ -1127,16 +1142,13 @@ if (inputCsvTvTime) {
         
         leitor.onload = async function(e) {
             const texto = e.target.result;
-            // Usei uma regex leve aqui para aceitar quebras de linha de qualquer sistema
-            const linhas = texto.split(/\r?\n/); 
+            const linhas = texto.split(/\r?\n/);
             const seriesParaImportar = [];
 
-            // Pula a primeira linha (cabeçalho) e lê o resto
             for (let i = 1; i < linhas.length; i++) {
                 const linha = linhas[i].trim();
                 if (linha === '') continue;
 
-                // Expressão regular para dividir por vírgulas, mas ignorar vírgulas dentro de aspas
                 const colunas = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
                 if (colunas.length >= 1) {
@@ -1144,7 +1156,6 @@ if (inputCsvTvTime) {
                     nomeSerie = nomeSerie.replace(/^"|"$/g, ''); 
                     
                     if (nomeSerie && nomeSerie.toLowerCase() !== 'tv_show_name' && nomeSerie.toLowerCase() !== 'series_name') {
-                        // Verificação extra para não ler a mesma série duas vezes no arquivo
                         if (!seriesParaImportar.includes(nomeSerie)) {
                             seriesParaImportar.push(nomeSerie);
                         }
@@ -1152,17 +1163,19 @@ if (inputCsvTvTime) {
                 }
             }
 
-            if (seriesParaImportar.length === 0) {
-                alert('Nenhuma série encontrada no arquivo. Verifique se é o documento correto.');
+            const totalSeries = seriesParaImportar.length;
+            if (totalSeries === 0) {
+                alert('Nenhuma série encontrada no arquivo.');
                 return;
             }
 
-            alert(`Encontradas ${seriesParaImportar.length} séries. A importação começou! Isso vai demorar cerca de ${Math.ceil(seriesParaImportar.length / 60)} minuto(s). NÃO feche o aplicativo.`);
-
             let adicionadas = 0;
 
-            for (let i = 0; i < seriesParaImportar.length; i++) {
+            for (let i = 0; i < totalSeries; i++) {
                 const nomeBusca = seriesParaImportar[i];
+                
+                // Atualiza a barra de progresso antes de buscar cada série
+                atualizarProgressoVisual(i + 1, totalSeries, `Importando série: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
                 try {
                     const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
@@ -1189,8 +1202,7 @@ if (inputCsvTvTime) {
                     console.log('Erro ao importar a série:', nomeBusca);
                 }
 
-                // Reduzi levemente o tempo para 500ms para a importação ser um pouco mais rápida e segura
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 350));
             }
 
             salvarSeries();
@@ -1198,7 +1210,11 @@ if (inputCsvTvTime) {
             if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
             
-            alert(`Importação de séries concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
+            // Esconde a barra e avisa conclusão
+            const containerProgresso = document.getElementById('container-progresso');
+            if (containerProgresso) containerProgresso.classList.add('escondido');
+
+            alert(`Importação de séries concluída!\n• ${adicionadas} novas séries adicionadas.`);
             inputCsvTvTime.value = ''; 
         };
 
@@ -1208,8 +1224,7 @@ if (inputCsvTvTime) {
 
 
 // ----------------------------------------------------------------------
-// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (O arquivo tracking-prod-records-v2.csv)
-// Função chamada pelo "onchange" no HTML do botão de Episódios Assistidos
+// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (Com Progresso)
 // ----------------------------------------------------------------------
 async function importarEpisodiosVistos(evento) {
     const arquivo = evento.target.files[0];
@@ -1242,7 +1257,7 @@ async function importarEpisodiosVistos(evento) {
         if (idxEpisodio === -1) idxEpisodio = cabecalho.indexOf('ep_no');
 
         if (idxSerie === -1) {
-            alert('Não foi possível identificar a coluna de séries no arquivo. Verifique se é o arquivo tracking-prod-records-v2.csv.');
+            alert('Não foi possível identificar a coluna de séries no arquivo tracking.');
             return;
         }
 
@@ -1273,21 +1288,22 @@ async function importarEpisodiosVistos(evento) {
         }
 
         const listaNomesSeries = Object.keys(mapaSeriesEpisodios);
+        const totalSeries = listaNomesSeries.length;
 
-        if (listaNomesSeries.length === 0) {
+        if (totalSeries === 0) {
             alert('Nenhum episódio encontrado no arquivo.');
             return;
         }
 
-        const tempoEstimadoMinutos = Math.ceil((listaNomesSeries.length * 0.5) / 60);
-        alert(`Encontradas ${listaNomesSeries.length} séries com histórico de episódios! A importação começou. Estimativa: ~${tempoEstimadoMinutos} minuto(s). NÃO feche o aplicativo.`);
-
         let adicionadas = 0;
         let atualizadas = 0;
 
-        for (let i = 0; i < listaNomesSeries.length; i++) {
+        for (let i = 0; i < totalSeries; i++) {
             const nomeBusca = listaNomesSeries[i];
             const epsImportados = Array.from(mapaSeriesEpisodios[nomeBusca]);
+
+            // Atualiza a barra de progresso visual
+            atualizarProgressoVisual(i + 1, totalSeries, `Sincronizando episódios: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
 
             try {
                 const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
@@ -1318,7 +1334,7 @@ async function importarEpisodiosVistos(evento) {
                 console.log('Erro ao buscar série no TMDB:', nomeBusca);
             }
 
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Progress(resolve => setTimeout(resolve, 350)); // Corrigido levemente para timeout normal
         }
 
         salvarSeries();
@@ -1326,7 +1342,11 @@ async function importarEpisodiosVistos(evento) {
         if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
         if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
 
-        alert(`Importação de Episódios concluída com sucesso!\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas com seus episódios assistidos.`);
+        // Esconde a barra e avisa conclusão
+        const containerProgresso = document.getElementById('container-progresso');
+        if (containerProgresso) containerProgresso.classList.add('escondido');
+
+        alert(`Importação de Episódios concluída!\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas.`);
         
         evento.target.value = '';
     };
