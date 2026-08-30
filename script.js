@@ -92,7 +92,13 @@ window.fazerLogout = function() {
 // -----------------------------------------------------------------
 window.salvarSeries = function() {
     localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
-    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true });
+    if (usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true })
+            .catch(erro => {
+                console.error('Falha ao salvar séries na nuvem:', erro);
+                alert('⚠️ Não foi possível salvar suas séries na nuvem (' + erro.message + '). Os dados ficaram salvos só neste navegador por enquanto — evite trocar de aparelho até resolver isso.');
+            });
+    }
 };
 
 window.salvarFilmes = function() {
@@ -236,7 +242,11 @@ window.sincronizarProgressoSeries = async function() {
         resultados.forEach((dados, i) => {
             if (dados && dados.id) {
                 const serieLocal = lote[i];
-                serieLocal.seasons = dados.seasons || [];
+                // Guarda só o essencial (season_number + episode_count) para não estourar o limite de 1MB do Firestore
+                serieLocal.seasons = (dados.seasons || []).map(s => ({
+                    season_number: s.season_number,
+                    episode_count: s.episode_count
+                }));
                 serieLocal.status = dados.status || '';
                 serieLocal.number_of_seasons = dados.number_of_seasons || 0;
             }
