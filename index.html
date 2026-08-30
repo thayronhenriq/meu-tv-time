@@ -140,30 +140,7 @@
                 </div>
             </div>
         </div>
-        <!-- Seção de Importação de Dados do TV Time -->
-        <div class="perfil-secao">
-            <div class="secao-titulo">
-                <h3>Importar Dados</h3> <span>&gt;</span>
-            </div>
-            <div style="background-color: #111; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center;">
-                <p style="font-size: 12px; color: #aaa; margin-bottom: 15px;">Selecione o arquivo CSV exportado pelo TV Time para sincronizar suas séries.</p>
-                
-                <!-- Botão de Upload de Arquivo -->
-                <input type="file" id="input-csv-tvtime" accept=".csv" style="display: none;">
-                <label for="input-csv-tvtime" style="background-color: #ffcc00; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; display: inline-block;">
-                    📁 Escolher Arquivo .CSV
-                </label>
-                <!-- Input escondido que faz a leitura do arquivo -->
-                <input type="file" id="input-importar-eps" accept=".csv" style="display:none;" onchange="importarEpisodiosVistos(event)">
-
-                <!-- Botão visual -->
-                <button onclick="document.getElementById('input-importar-eps').click()" style="background: #ffcc00; color: #000; font-weight: bold; padding: 12px 20px; border: none; border-radius: 25px; cursor: pointer; width: 100%; margin-top: 15px;">
-                 📂 Importar Episódios Assistidos (.CSV)
-                </button>
-
-            </div>
-        </div>
-
+       
         <!-- Listas (Dinâmico) -->
         <div class="perfil-secao">
             <div class="secao-titulo">
@@ -372,7 +349,34 @@
             <!-- O JavaScript vai injetar os pôsteres aqui -->
         </div>
     </div>
+<!-- ================= TELA DE IMPORTAÇÃO DE DADOS ================= -->
+<div id="tela-importacao" class="escondido" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 2000; overflow-y: auto;">
+    
+    <!-- Cabeçalho com botão de voltar -->
+    <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #222; background: #111; position: sticky; top: 0;">
+        <button onclick="fecharTelaImportacao()" style="background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; margin-right: 15px;">❮</button>
+        <h2 style="font-size: 18px; font-weight: bold; margin: 0;">Importar Dados</h2>
+    </div>
 
+    <!-- Conteúdo da página -->
+    <div style="padding: 25px 20px;">
+        <p style="color: #aaa; font-size: 14px; text-align: center; margin-bottom: 30px; line-height: 1.5;">
+            Selecione o arquivo CSV exportado pelo TV Time para sincronizar suas séries e episódios assistidos.
+        </p>
+        
+        <!-- Os botões que vieram do perfil antigo (Mantenha as funções onclick que você já tem funcionando!) -->
+        <input type="file" id="input-importar-series" accept=".csv" style="display:none;" onchange="importarSeries(event)">
+        <button onclick="document.getElementById('input-importar-series').click()" style="background: #ffcc00; color: #000; font-weight: bold; padding: 15px; border: none; border-radius: 25px; cursor: pointer; width: 100%; margin-bottom: 20px;">
+            📂 Escolher Arquivo .CSV (Séries)
+        </button>
+
+        <input type="file" id="input-importar-eps" accept=".csv" style="display:none;" onchange="importarEpisodiosVistos(event)">
+        <button onclick="document.getElementById('input-importar-eps').click()" style="background: #ffcc00; color: #000; font-weight: bold; padding: 15px; border: none; border-radius: 25px; cursor: pointer; width: 100%;">
+            📂 Importar Episódios Assistidos (.CSV)
+        </button>
+    </div>
+</div>
+    
     <!-- ================= FIREBASE ================= -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
