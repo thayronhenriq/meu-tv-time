@@ -303,35 +303,45 @@ function renderizarSeries() {
 
     // Função que calcula qual seria o próximo episódio, e diz se a série já terminou de verdade
     // (só consegue saber isso com certeza se a série já foi sincronizada com o TMDB via "seasons")
-    const calcularProximoEpisodio = (serie) => {
-        let proxTemp = 1, proxEp = 1, finalizada = false;
-        if (!serie.episodiosVistos || serie.episodiosVistos.length === 0) {
-            return { proxTemp, proxEp, finalizada };
-        }
+    // Função que calcula qual seria o próximo episódio, e diz se a série já terminou
+const calcularProximoEpisodio = (serie) => {
+    let proxTemp = 1, proxEp = 1, finalizada = false;
+    let ultimoTemp = 0, ultimoEp = 0; // Novas variáveis para guardar o último visto
 
-        let vistos = serie.episodiosVistos.map(v => {
-            let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
-        });
-        vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
-        let ultimoVisto = vistos[vistos.length - 1];
-        proxTemp = ultimoVisto.t; proxEp = ultimoVisto.e + 1;
+    if (!serie.episodiosVistos || serie.episodiosVistos.length === 0) {
+        return { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp };
+    }
 
-        if (serie.seasons && serie.seasons.length > 0) {
-            const temporadaAtual = serie.seasons.find(s => s.season_number === ultimoVisto.t);
-            if (temporadaAtual && proxEp > temporadaAtual.episode_count) {
-                // Já assistiu todos os episódios dessa temporada, tenta ir pra próxima
-                const proxTemporada = serie.seasons.find(s => s.season_number === ultimoVisto.t + 1 && s.episode_count > 0);
-                if (proxTemporada) {
-                    proxTemp = proxTemporada.season_number;
-                    proxEp = 1;
-                } else {
-                    finalizada = true; // Não existe próxima temporada com episódios: já assistiu tudo
-                }
+    let vistos = serie.episodiosVistos.map(v => {
+        let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
+    });
+    
+    vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
+    let ultimoVisto = vistos[vistos.length - 1];
+    
+    // Guardando o último episódio assistido
+    ultimoTemp = ultimoVisto.t; 
+    ultimoEp = ultimoVisto.e;
+    
+    proxTemp = ultimoTemp; 
+    proxEp = ultimoEp + 1;
+
+    if (serie.seasons && serie.seasons.length > 0) {
+        const temporadaAtual = serie.seasons.find(s => s.season_number === ultimoVisto.t);
+        if (temporadaAtual && proxEp > temporadaAtual.episode_count) {
+            // Já assistiu todos os episódios dessa temporada, tenta ir pra próxima
+            const proxTemporada = serie.seasons.find(s => s.season_number === ultimoVisto.t + 1 && s.episode_count > 0);
+            if (proxTemporada) {
+                proxTemp = proxTemporada.season_number;
+                proxEp = 1;
+            } else {
+                finalizada = true; // Não existe próxima temporada: já assistiu tudo
             }
         }
+    }
 
-        return { proxTemp, proxEp, finalizada };
-    };
+    return { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp };
+};
 
     minhasSeries.forEach(serie => {
         const qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
@@ -362,26 +372,34 @@ function renderizarSeries() {
             </div>
         `;
 
-        if (modoExibicaoMinhaLista === 'lista') {
+if (modoExibicaoMinhaLista === 'lista') {
             
-            // --- MODO LISTA (O SEU ORIGINAL) ---
+            // --- MODO LISTA (CORRIGIDO) ---
             seriesDoGrupo.forEach(serie => {
-                const { proxTemp, proxEp } = calcularProximoEpisodio(serie);
+                const { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp } = calcularProximoEpisodio(serie);
 
-                const tForm = String(proxTemp).padStart(2, '0');
-                const eForm = String(proxEp).padStart(2, '0');
+                // Se a série estiver finalizada, mostra o último episódio visto. Se não, mostra o próximo.
+                const tExibir = finalizada ? ultimoTemp : proxTemp;
+                const eExibir = finalizada ? ultimoEp : proxEp;
+
+                const tForm = String(tExibir).padStart(2, '0');
+                const eForm = String(eExibir).padStart(2, '0');
                 const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
 
+                // Altera o subtitulo e a classe do botão (se finalizada, fica verde com a classe "visto")
+                const subtitulo = finalizada ? "Assistido" : "Próximo episódio";
+                const classeBtn = finalizada ? "check-btn visto" : "check-btn";
+
                 html += `
-                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${proxTemp}, ${proxEp})">
+                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${tExibir}, ${eExibir})">
                         <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
                         <div class="serie-info">
                             <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
                             <span class="serie-ep-info">T${tForm} | E${eForm}</span>
-                            <span class="serie-ep-title" style="color:#aaa; font-size:12px;">Próximo episódio</span>
+                            <span class="serie-ep-title" style="color:#aaa; font-size:12px;">${subtitulo}</span>
                         </div>
                         <div class="serie-action">
-                            <button class="check-btn" onclick="event.stopPropagation(); marcarDoCartao(${serie.id}, ${proxTemp}, ${proxEp})">✓</button>
+                            <button class="${classeBtn}" onclick="event.stopPropagation(); toggleDoCartao(${serie.id}, ${tExibir}, ${eExibir})">✓</button>
                         </div>
                     </div>`;
             });
@@ -435,16 +453,26 @@ function renderizarSeries() {
 
 
 
-window.marcarDoCartao = function(id, t, e) {
+window.toggleDoCartao = function(id, t, e) {
     let serie = minhasSeries.find(s => s.id === id);
     if (serie) {
         if (!serie.episodiosVistos) serie.episodiosVistos = [];
         const epId = `${t}-${e}`;
-        if (!serie.episodiosVistos.includes(epId)) serie.episodiosVistos.push(epId);
-        salvarSeries(); atualizarEstatisticas(); renderizarSeries();
+        const index = serie.episodiosVistos.indexOf(epId);
+        
+        if (index > -1) {
+            // Se o episódio já foi assistido, desmarca (remove da lista)
+            serie.episodiosVistos.splice(index, 1);
+        } else {
+            // Se não foi assistido, marca (adiciona na lista)
+            serie.episodiosVistos.push(epId);
+        }
+        
+        salvarSeries(); 
+        atualizarEstatisticas(); 
+        renderizarSeries(); // Recarrega a aba para a série mudar de categoria na mesma hora
     }
 };
-
 // ================= 3. RENDERIZAR MEUS FILMES =================
 function renderizarFilmes() {
     const listaContainer = document.getElementById('lista-filmes');
