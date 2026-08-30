@@ -1110,8 +1110,12 @@ renderizarFavoritos();
 renderizarListasPerfil();
 atualizarEstatisticas();
 renderizarImagensPerfil(); 
-// // ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME =================
+// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME =================
 
+// ----------------------------------------------------------------------
+// 1. IMPORTAR APENAS AS SÉRIES (O seu código original)
+// Botão acionado pelo ID 'input-csv-tvtime'
+// ----------------------------------------------------------------------
 const inputCsvTvTime = document.getElementById('input-csv-tvtime');
 
 if (inputCsvTvTime) {
@@ -1123,7 +1127,8 @@ if (inputCsvTvTime) {
         
         leitor.onload = async function(e) {
             const texto = e.target.result;
-            const linhas = texto.split('\n');
+            // Usei uma regex leve aqui para aceitar quebras de linha de qualquer sistema
+            const linhas = texto.split(/\r?\n/); 
             const seriesParaImportar = [];
 
             // Pula a primeira linha (cabeçalho) e lê o resto
@@ -1138,8 +1143,11 @@ if (inputCsvTvTime) {
                     let nomeSerie = colunas[0].trim();
                     nomeSerie = nomeSerie.replace(/^"|"$/g, ''); 
                     
-                    if (nomeSerie && nomeSerie !== 'Tv_show_name') {
-                        seriesParaImportar.push(nomeSerie);
+                    if (nomeSerie && nomeSerie.toLowerCase() !== 'tv_show_name' && nomeSerie.toLowerCase() !== 'series_name') {
+                        // Verificação extra para não ler a mesma série duas vezes no arquivo
+                        if (!seriesParaImportar.includes(nomeSerie)) {
+                            seriesParaImportar.push(nomeSerie);
+                        }
                     }
                 }
             }
@@ -1181,7 +1189,8 @@ if (inputCsvTvTime) {
                     console.log('Erro ao importar a série:', nomeBusca);
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Reduzi levemente o tempo para 500ms para a importação ser um pouco mais rápida e segura
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
 
             salvarSeries();
@@ -1189,12 +1198,140 @@ if (inputCsvTvTime) {
             if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
             if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
             
-            alert(`Importação concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
+            alert(`Importação de séries concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
             inputCsvTvTime.value = ''; 
         };
 
         leitor.readAsText(arquivo);
     });
+}
+
+
+// ----------------------------------------------------------------------
+// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (O arquivo tracking-prod-records-v2.csv)
+// Função chamada pelo "onchange" no HTML do botão de Episódios Assistidos
+// ----------------------------------------------------------------------
+async function importarEpisodiosVistos(evento) {
+    const arquivo = evento.target.files[0];
+    if (!arquivo) return;
+
+    const leitor = new FileReader();
+
+    leitor.onload = async function(e) {
+        const texto = e.target.result;
+        const linhas = texto.split(/\r?\n/);
+        
+        if (linhas.length < 2) {
+            alert('O arquivo selecionado está vazio ou inválido.');
+            return;
+        }
+
+        function separarLinhaCSV(linha) {
+            return linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.trim().replace(/^"|"$/g, ''));
+        }
+
+        const cabecalho = separarLinhaCSV(linhas[0]).map(col => col.toLowerCase());
+        
+        let idxSerie = cabecalho.indexOf('series_name');
+        if (idxSerie === -1) idxSerie = cabecalho.indexOf('tv_show_name');
+
+        let idxTemporada = cabecalho.indexOf('season_number');
+        if (idxTemporada === -1) idxTemporada = cabecalho.indexOf('s_no');
+
+        let idxEpisodio = cabecalho.indexOf('episode_number');
+        if (idxEpisodio === -1) idxEpisodio = cabecalho.indexOf('ep_no');
+
+        if (idxSerie === -1) {
+            alert('Não foi possível identificar a coluna de séries no arquivo. Verifique se é o arquivo tracking-prod-records-v2.csv.');
+            return;
+        }
+
+        const mapaSeriesEpisodios = {};
+
+        for (let i = 1; i < linhas.length; i++) {
+            const linha = linhas[i].trim();
+            if (!linha) continue;
+
+            const colunas = separarLinhaCSV(linha);
+            const nomeSerie = colunas[idxSerie];
+
+            if (!nomeSerie || nomeSerie.toLowerCase() === 'series_name' || nomeSerie.toLowerCase() === 'tv_show_name') continue;
+
+            if (!mapaSeriesEpisodios[nomeSerie]) {
+                mapaSeriesEpisodios[nomeSerie] = new Set();
+            }
+
+            if (idxTemporada !== -1 && idxEpisodio !== -1 && colunas[idxTemporada] && colunas[idxEpisodio]) {
+                const tempNum = parseInt(colunas[idxTemporada], 10);
+                const epNum = parseInt(colunas[idxEpisodio], 10);
+
+                if (!isNaN(tempNum) && !isNaN(epNum)) {
+                    const epCodigo = `S${String(tempNum).padStart(2, '0')}E${String(epNum).padStart(2, '0')}`;
+                    mapaSeriesEpisodios[nomeSerie].add(epCodigo);
+                }
+            }
+        }
+
+        const listaNomesSeries = Object.keys(mapaSeriesEpisodios);
+
+        if (listaNomesSeries.length === 0) {
+            alert('Nenhum episódio encontrado no arquivo.');
+            return;
+        }
+
+        const tempoEstimadoMinutos = Math.ceil((listaNomesSeries.length * 0.5) / 60);
+        alert(`Encontradas ${listaNomesSeries.length} séries com histórico de episódios! A importação começou. Estimativa: ~${tempoEstimadoMinutos} minuto(s). NÃO feche o aplicativo.`);
+
+        let adicionadas = 0;
+        let atualizadas = 0;
+
+        for (let i = 0; i < listaNomesSeries.length; i++) {
+            const nomeBusca = listaNomesSeries[i];
+            const epsImportados = Array.from(mapaSeriesEpisodios[nomeBusca]);
+
+            try {
+                const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
+                const dados = await resposta.json();
+
+                if (dados.results && dados.results.length > 0) {
+                    const serieTMDB = dados.results[0];
+                    const jaExiste = minhasSeries.find(s => s.id === serieTMDB.id);
+
+                    if (jaExiste) {
+                        const epsAnteriores = jaExiste.episodiosVistos || [];
+                        jaExiste.episodiosVistos = Array.from(new Set([...epsAnteriores, ...epsImportados]));
+                        atualizadas++;
+                    } else {
+                        const posterUrlPath = serieTMDB.poster_path ? `${IMG_URL}${serieTMDB.poster_path}` : '';
+                        
+                        minhasSeries.push({
+                            id: serieTMDB.id,
+                            nome: serieTMDB.name.toUpperCase(),
+                            posterUrl: posterUrlPath,
+                            episodiosVistos: epsImportados,
+                            favorito: false
+                        });
+                        adicionadas++;
+                    }
+                }
+            } catch (erro) {
+                console.log('Erro ao buscar série no TMDB:', nomeBusca);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        salvarSeries();
+        if (typeof renderizarSeries === 'function') renderizarSeries();
+        if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
+        if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+
+        alert(`Importação de Episódios concluída com sucesso!\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas com seus episódios assistidos.`);
+        
+        evento.target.value = '';
+    };
+
+    leitor.readAsText(arquivo);
 }
 // ================= 15. TELA DE "TODAS AS SÉRIES" E FILTROS =================
 
