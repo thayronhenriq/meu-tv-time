@@ -756,9 +756,28 @@ window.abrirDetalhesSerie = async function(serieId) {
     const serieSalva = minhasSeries.find(s => s.id === serieId);
 
     try {
-        const resp = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR`);
+        // Uma chamada só já traz elenco, trailers e recomendações junto com os dados da série
+        const resp = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR&append_to_response=credits,videos,recommendations`);
         const serie = await resp.json();
         const ano = serie.first_air_date ? serie.first_air_date.split('-')[0] : 'N/A';
+
+        // --- Status traduzido ---
+        const statusMap = {
+            'Ended': 'Finalizada', 'Canceled': 'Cancelada', 'Returning Series': 'Em exibição',
+            'In Production': 'Em produção', 'Planned': 'Planejada', 'Pilot': 'Piloto'
+        };
+        const statusLabel = statusMap[serie.status] || serie.status || '';
+
+        // --- Gêneros ---
+        const generosStr = (serie.genres || []).map(g => g.name).join(', ');
+
+        // --- Progresso (episódios reais assistidos / total, ignorando especiais) ---
+        const totalEpisodios = (serie.seasons || []).filter(t => t.season_number > 0).reduce((soma, t) => soma + t.episode_count, 0);
+        const qtdVistos = serieSalva && serieSalva.episodiosVistos ? serieSalva.episodiosVistos.length : 0;
+        let progLabel = 'Não iniciada';
+        if (qtdVistos > 0 && totalEpisodios > 0 && qtdVistos >= totalEpisodios) progLabel = 'Completa';
+        else if (qtdVistos > 0) progLabel = 'Assistindo';
+        const progPct = totalEpisodios > 0 ? Math.min((qtdVistos / totalEpisodios) * 100, 100) : 0;
 
         let htmlTemporadas = '';
         serie.seasons.forEach(temp => {
@@ -784,42 +803,97 @@ window.abrirDetalhesSerie = async function(serieId) {
         const nomeSeguro = serie.name.replace(/'/g, "\\'");
         const posterUrlPath = serie.poster_path ? `${IMG_URL}${serie.poster_path}` : '';
 
-        // Se a série já está na lista, mostra o botão vermelho. Se não, deixa vazio lá em cima.
-        const botaoRemoverHtml = serieSalva 
-            ? `<button onclick="removerSerie(${serie.id})" style="background: #c0392b; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer;">Remover Série</button>`
-            : '';
+        // --- Botão "Seguindo" (uma pílula só, que troca de função conforme o estado) ---
+        const botaoSeguindoHtml = serieSalva
+            ? `<button onclick="removerSerie(${serie.id})" style="background:#2a2a2a; color:#fff; border:1px solid #444; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px;">✓ Seguindo</button>`
+            : `<button onclick="adicionarSerieDiretoDetalhes(${serie.id}, '${nomeSeguro}', '${posterUrlPath}')" style="background:#ffcc00; color:#000; border:none; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:bold; cursor:pointer;">+ Seguir</button>`;
 
-        // Se a série NÃO está na lista, cria o botão amarelo fixo no rodapé
-        const botaoAdicionarFixoHtml = !serieSalva
-            ? `<button onclick="adicionarSerieDiretoDetalhes(${serie.id}, '${nomeSeguro}', '${posterUrlPath}')" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #ffcc00; color: #000; border: none; padding: 18px; font-weight: bold; font-size: 14px; letter-spacing: 1px; z-index: 5000; cursor: pointer; text-align: center;">+ ADICIONAR SÉRIE</button>`
-            : '';
+        // --- Elenco ---
+        const elenco = (serie.credits && serie.credits.cast) ? serie.credits.cast.slice(0, 12) : [];
+        let htmlElenco = '';
+        if (elenco.length > 0) {
+            htmlElenco = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Elenco</h3>
+                <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px;">
+                    ${elenco.map(ator => `
+                        <div style="flex:0 0 auto; width:70px; text-align:center;">
+                            <div style="width:70px; height:70px; border-radius:50%; overflow:hidden; background:#333;">
+                                ${ator.profile_path ? `<img src="${IMG_URL}${ator.profile_path}" style="width:100%; height:100%; object-fit:cover;">` : ''}
+                            </div>
+                            <p style="font-size:11px; margin:6px 0 0 0; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ator.name}</p>
+                            <p style="font-size:10px; margin:2px 0 0 0; color:#888; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ator.character || ''}</p>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        // --- Trailer (primeiro trailer oficial do YouTube que encontrar) ---
+        const trailer = (serie.videos && serie.videos.results) ? serie.videos.results.find(v => v.site === 'YouTube' && v.type === 'Trailer') : null;
+        let htmlTrailer = '';
+        if (trailer) {
+            htmlTrailer = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Trailer</h3>
+                <div style="position:relative; width:100%; padding-top:56.25%; border-radius:8px; overflow:hidden;">
+                    <iframe src="https://www.youtube.com/embed/${trailer.key}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" allowfullscreen></iframe>
+                </div>`;
+        }
+
+        // --- Recomendações ---
+        const recomendacoes = (serie.recommendations && serie.recommendations.results) ? serie.recommendations.results.filter(r => r.poster_path).slice(0, 10) : [];
+        let htmlRecomendacoes = '';
+        if (recomendacoes.length > 0) {
+            htmlRecomendacoes = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Você também pode gostar</h3>
+                <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:8px;">
+                    ${recomendacoes.map(r => `
+                        <div style="flex:0 0 auto; width:100px; cursor:pointer;" onclick="abrirDetalhesSerie(${r.id})">
+                            <img src="${IMG_URL}${r.poster_path}" style="width:100px; height:150px; object-fit:cover; border-radius:6px;">
+                            <p style="font-size:11px; margin:6px 0 0 0; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.name}</p>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
 
         conteudo.innerHTML = `
             <div style="height:230px; background:linear-gradient(to bottom, transparent, #000), url('${IMG_URL}${serie.backdrop_path}') center/cover;"></div>
-            <div style="padding:15px; margin-top:-30px; padding-bottom: 80px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
-                    <h2 style="font-size:24px; font-weight:bold; width:70%;">${serie.name}</h2>
+            <div style="padding:15px; margin-top:-30px; padding-bottom: 60px;">
+                <h2 style="font-size:24px; font-weight:bold; margin-bottom:6px;">${serie.name}</h2>
+                <p style="color:#aaa; font-size:13px; margin: 0 0 10px 0;">${ano} • ${statusLabel}${generosStr ? ' • ' + generosStr : ''}</p>
+
+                ${serie.vote_average ? `<p style="font-size:13px; color:#ffcc00; margin: 0 0 15px 0;">⭐ ${serie.vote_average.toFixed(1)} <span style="color:#888;">(${serie.vote_count} avaliações · TMDB)</span></p>` : ''}
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                    ${botaoSeguindoHtml}
                     <div style="display:flex;">
                         <button class="btn-add-to-list-icon" onclick="abrirModalAddLista(${serie.id}, 'serie', '${posterUrlPath}', '${nomeSeguro}')">☰</button>
                         <button class="btn-favorito ${isFavorito}" onclick="toggleFavoritoSerie(${serie.id}, this)">♥</button>
                     </div>
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <p style="color:#aaa; font-size:13px; margin: 0;">${ano} • ${serie.number_of_seasons} Temporadas</p>
-                    ${botaoRemoverHtml}
+
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
+                        <span>${progLabel}</span>
+                        <span>${qtdVistos}/${totalEpisodios}</span>
+                    </div>
+                    <div style="width:100%; height:5px; background:#333; border-radius:3px; overflow:hidden;">
+                        <div style="width:${progPct}%; height:100%; background:#ffcc00;"></div>
+                    </div>
                 </div>
-                
+
                 <div style="display:flex; margin-bottom:20px; border-bottom:1px solid #222;">
                     <button class="tab-btn active" style="width:50%;" onclick="mudarAba('sobre', this)">SOBRE</button>
                     <button class="tab-btn" style="width:50%;" onclick="mudarAba('episodios', this)">EPISÓDIOS</button>
                 </div>
-                <div id="aba-sobre"><p style="font-size:14px; color:#ccc;">${serie.overview || "Sem sinopse."}</p></div>
+                <div id="aba-sobre">
+                    <p style="font-size:14px; color:#ccc;">${serie.overview || "Sem sinopse."}</p>
+                    ${htmlElenco}
+                    ${htmlTrailer}
+                    ${htmlRecomendacoes}
+                </div>
                 <div id="aba-episodios" class="escondido">${htmlTemporadas}</div>
-            </div>
-            ${botaoAdicionarFixoHtml}`;
+            </div>`;
             
-    } catch(e) { conteudo.innerHTML = '<p>Erro.</p>'; }
+    } catch(e) { conteudo.innerHTML = '<p>Erro.</p>'; console.error(e); }
 };
 
 
