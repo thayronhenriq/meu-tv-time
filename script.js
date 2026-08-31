@@ -2088,3 +2088,72 @@ document.addEventListener('click', function(e) {
         dropdown.classList.add('escondido');
     }
 });
+// Desenha os cards grandes dentro de #conteudo-todas-listas
+window.renderizarTodasAsListas = function() {
+    const container = document.getElementById('conteudo-todas-listas');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (typeof minhasListas === 'undefined' || minhasListas.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#888; margin-top:50px;">Você ainda não criou nenhuma lista.</p>';
+        return;
+    }
+    
+    minhasListas.forEach(lista => {
+        let capa = '#222';
+        if (lista.itens && lista.itens.length > 0 && lista.itens[0].posterUrl) {
+            capa = `url('${lista.itens[0].posterUrl}')`;
+        }
+        
+        container.innerHTML += `
+            <div onclick="abrirTelaVerLista(${lista.id})" style="background: ${capa} center/cover; position: relative; height: 100px; border-radius: 10px; overflow: hidden; cursor: pointer;">
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65);"></div>
+                <div style="position:relative; z-index:2; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%;">
+                    <span style="font-size:18px; font-weight:bold; color:white;">${lista.nome}</span>
+                    <span style="color:#aaa; font-size:13px; margin-top:4px;">${lista.itens ? lista.itens.length : 0} itens</span>
+                </div>
+            </div>
+        `;
+    });
+};
+
+// Abre a tela cheia quando clica no título "Listas ›"
+window.abrirTelaTodasListas = function() {
+    const tela = document.getElementById('tela-todas-listas');
+    if (tela) {
+        tela.classList.remove('escondido');
+        renderizarTodasAsListas(); // Atualiza a lista no momento da abertura
+    }
+};
+
+// Fecha a tela de todas as listas no botão ←
+window.fecharTelaTodasListas = function() {
+    const tela = document.getElementById('tela-todas-listas');
+    if (tela) {
+        tela.classList.add('escondido');
+    }
+};
+window.salvarNovaLista = function() {
+    const input = document.getElementById('input-nome-lista');
+    const nome = input ? input.value.trim() : '';
+    
+    if(!nome) return alert('Digite um nome para a lista!');
+    
+    minhasListas.push({ 
+        id: Date.now(), 
+        nome: nome.toUpperCase(), 
+        itens: [] 
+    });
+    
+    salvarListasCus(); 
+    renderizarListasPerfil();   // Atualiza o carrossel do perfil
+    renderizarTodasAsListas();  // Atualiza a tela de "Ver TODAS"
+    
+    if (input) input.value = '';
+    fecharModalCriarLista();
+};
+
+// Dentro da sua inicialização geral
+renderizarListasPerfil();
+renderizarTodasAsListas();
