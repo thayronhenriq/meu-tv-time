@@ -2201,3 +2201,81 @@ window.salvarNovaLista = function() {
 // Dentro da sua inicialização geral
 renderizarListasPerfil();
 renderizarTodasAsListas();
+
+window.abrirBuscaParaAdicionarNaLista = function() {
+    document.getElementById('modal-busca-add-lista').classList.remove('escondido');
+    document.getElementById('input-busca-lista').value = '';
+    document.getElementById('resultados-busca-lista').innerHTML = '';
+    document.getElementById('input-busca-lista').focus();
+};
+
+window.fecharBuscaLista = function() {
+    document.getElementById('modal-busca-add-lista').classList.add('escondido');
+};
+
+window.buscarItemParaLista = function() {
+    const termo = document.getElementById('input-busca-lista').value.toLowerCase().trim();
+    if(!termo) return;
+
+    const resultadosContainer = document.getElementById('resultados-busca-lista');
+    
+    // Junta tudo do seu catálogo em um lugar só para pesquisar
+    let todosOsItens = [];
+    
+    // AS DUAS LINHAS ABAIXO FORAM ATUALIZADAS COM OS NOMES CORRETOS:
+    if (typeof meusFilmes !== 'undefined') todosOsItens = todosOsItens.concat(meusFilmes.map(f => ({...f, tipo: 'filme'})));
+    if (typeof minhasSeries !== 'undefined') todosOsItens = todosOsItens.concat(minhasSeries.map(s => ({...s, tipo: 'serie'})));
+
+    // Filtra pelo que foi digitado
+    const resultados = todosOsItens.filter(item => item.titulo && item.titulo.toLowerCase().includes(termo));
+
+    resultadosContainer.innerHTML = '';
+
+    if(resultados.length === 0) {
+        resultadosContainer.innerHTML = '<p style="color:#888; text-align:center;">Nenhum item encontrado.</p>';
+        return;
+    }
+
+    // Desenha os resultados na tela
+    resultados.forEach(item => {
+        resultadosContainer.innerHTML += `
+            <div style="display:flex; align-items:center; background:#111; padding:10px; border-radius:8px; gap:15px; border:1px solid #333;">
+                <img src="${item.posterUrl || ''}" style="width:50px; height:75px; object-fit:cover; border-radius:4px; background:#333;">
+                <div style="flex:1;">
+                    <h4 style="margin:0; color:#fff;">${item.titulo}</h4>
+                    <span style="color:#aaa; font-size:12px;">${item.tipo === 'filme' ? 'Filme' : 'Série'}</span>
+                </div>
+                <button onclick="adicionarEsteItemNaLista(${item.id}, '${item.tipo}', '${item.posterUrl}', '${item.titulo.replace(/'/g, "\\'")}')" style="background:#ffcc00; color:#000; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;">Adicionar</button>
+            </div>
+        `;
+    });
+};
+
+window.adicionarEsteItemNaLista = function(itemId, tipo, posterUrl, titulo) {
+    if(!listaAtualId) return;
+    
+    let lista = minhasListas.find(l => l.id === listaAtualId);
+    if(!lista) return;
+
+    // Bloqueia adição duplicada
+    const jaExiste = lista.itens.some(i => i.id === itemId && i.tipo === tipo);
+    if(jaExiste) {
+        return alert('Este item já está na sua lista!');
+    }
+
+    // Adiciona na lista atual
+    lista.itens.push({
+        id: itemId,
+        tipo: tipo,
+        posterUrl: posterUrl,
+        titulo: titulo,
+        adicionadoEm: Date.now() // Útil para a ordenação depois!
+    });
+
+    salvarListasCus();
+    renderizarTodasAsListas();
+    renderizarListasPerfil();
+    
+    abrirTelaVerLista(listaAtualId); // Recarrega a tela para mostrar o item novo
+    fecharBuscaLista(); // Fecha a tela de busca
+};
