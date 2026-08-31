@@ -637,3 +637,20 @@ body {
     color: #000;
     font-weight: bold;
 }
+
+/* Garante que elementos escondidos fiquem ocultos */
+.escondido {
+    display: none !important;
+}
+
+/* Garante rolagem horizontal suave no carrossel do perfil */
+#perfil-listas-carrossel {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+
+#perfil-listas-carrossel::-webkit-scrollbar {
+    display: none;
+}
