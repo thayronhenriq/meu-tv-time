@@ -2222,12 +2222,23 @@ window.buscarItemParaLista = function() {
     // Junta tudo do seu catálogo em um lugar só para pesquisar
     let todosOsItens = [];
     
-    // AS DUAS LINHAS ABAIXO FORAM ATUALIZADAS COM OS NOMES CORRETOS:
-    if (typeof meusFilmes !== 'undefined') todosOsItens = todosOsItens.concat(meusFilmes.map(f => ({...f, tipo: 'filme'})));
-    if (typeof minhasSeries !== 'undefined') todosOsItens = todosOsItens.concat(minhasSeries.map(s => ({...s, tipo: 'serie'})));
+    // 1. Pega os filmes (verifica meusFilmes)
+    if (typeof meusFilmes !== 'undefined') {
+        todosOsItens = todosOsItens.concat(meusFilmes.map(f => ({...f, tipo: 'filme'})));
+    }
+    
+    // 2. Pega as séries (verifica minhaSeries no singular e no plural)
+    if (typeof minhaSeries !== 'undefined') {
+        todosOsItens = todosOsItens.concat(minhaSeries.map(s => ({...s, tipo: 'serie'})));
+    } else if (typeof minhasSeries !== 'undefined') {
+        todosOsItens = todosOsItens.concat(minhasSeries.map(s => ({...s, tipo: 'serie'})));
+    }
 
-    // Filtra pelo que foi digitado
-    const resultados = todosOsItens.filter(item => item.titulo && item.titulo.toLowerCase().includes(termo));
+    // 3. Filtra pelo que foi digitado (aceita titulo, nome ou title)
+    const resultados = todosOsItens.filter(item => {
+        const tituloDoItem = item.titulo || item.nome || item.title || '';
+        return tituloDoItem.toLowerCase().includes(termo);
+    });
 
     resultadosContainer.innerHTML = '';
 
@@ -2238,14 +2249,19 @@ window.buscarItemParaLista = function() {
 
     // Desenha os resultados na tela
     resultados.forEach(item => {
+        // Pega os dados corretamente independente de como foram salvos na sua array
+        const tituloExibicao = item.titulo || item.nome || item.title || 'Sem título';
+        const capaUrl = item.posterUrl || item.imagem || item.capa || '';
+        const tituloSeguro = tituloExibicao.replace(/'/g, "\\'"); // Evita erros se o nome tiver aspas
+
         resultadosContainer.innerHTML += `
             <div style="display:flex; align-items:center; background:#111; padding:10px; border-radius:8px; gap:15px; border:1px solid #333;">
-                <img src="${item.posterUrl || ''}" style="width:50px; height:75px; object-fit:cover; border-radius:4px; background:#333;">
+                <img src="${capaUrl}" style="width:50px; height:75px; object-fit:cover; border-radius:4px; background:#333;">
                 <div style="flex:1;">
-                    <h4 style="margin:0; color:#fff;">${item.titulo}</h4>
+                    <h4 style="margin:0; color:#fff;">${tituloExibicao}</h4>
                     <span style="color:#aaa; font-size:12px;">${item.tipo === 'filme' ? 'Filme' : 'Série'}</span>
                 </div>
-                <button onclick="adicionarEsteItemNaLista(${item.id}, '${item.tipo}', '${item.posterUrl}', '${item.titulo.replace(/'/g, "\\'")}')" style="background:#ffcc00; color:#000; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;">Adicionar</button>
+                <button onclick="adicionarEsteItemNaLista(${item.id}, '${item.tipo}', '${capaUrl}', '${tituloSeguro}')" style="background:#ffcc00; color:#000; border:none; padding:8px 15px; border-radius:5px; font-weight:bold; cursor:pointer;">Adicionar</button>
             </div>
         `;
     });
