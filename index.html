@@ -145,16 +145,16 @@
             </div>
         </div>
        
-        <!-- Listas (Dinâmico) -->
-        <div class="perfil-secao">
-            <div class="secao-titulo">
-                <h3>Listas</h3> 
-                <button onclick="abrirModalCriarLista()" style="background:transparent; color:#ffcc00; border:1px solid #ffcc00; border-radius:15px; padding:4px 10px; font-size:10px; font-weight:bold;">+ NOVA LISTA</button>
-            </div>
-            <div class="carrossel-posters" id="perfil-listas-carrossel">
-                <!-- O JS vai injetar as listas criadas aqui -->
-            </div>
-        </div>
+        <!-- Listas (Dinâmico - Clicável) -->
+<div class="perfil-secao">
+    <div class="secao-titulo" onclick="abrirTelaTodasListas()" style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <h3 style="margin: 0;">Listas</h3>
+        <span style="color: #888; font-size: 16px; font-weight: bold;">›</span>
+    </div>
+    <div class="carrossel-posters" id="perfil-listas-carrossel">
+        <!-- O JS vai injetar as listas criadas aqui em carrossel horizontal -->
+    </div>
+</div>
 
         <!-- Séries (Dinâmico - O JS injeta aqui) -->
         <div class="perfil-secao">
@@ -243,43 +243,96 @@
             </div>
         </div>
     </div>
-    <!-- ================= MODAIS DE LISTAS PERSONALIZADAS ================= -->
-    
-    <!-- Modal Criar Nova Lista -->
-    <div id="modal-criar-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
-        <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333;">
-            <h3 style="margin-bottom:15px; color:#fff;">Nova Lista</h3>
-            <input type="text" id="input-nome-lista" placeholder="Nome da lista (Ex: Para chorar)" style="width:100%; padding:12px; margin-bottom:15px; background:#222; color:#fff; border:none; border-radius:5px; outline:none;">
-            <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button onclick="fecharModalCriarLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Cancelar</button>
-                <button onclick="salvarNovaLista()" style="background:#ffcc00; color:#000; border:none; padding:10px 15px; border-radius:5px; font-weight:bold;">Criar Lista</button>
+<!-- ================= MODAIS E TELAS DE LISTAS PERSONALIZADAS ================= -->
+
+<!-- Modal Criar Nova Lista -->
+<div id="modal-criar-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
+    <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333;">
+        <h3 style="margin-bottom:15px; color:#fff;">Nova Lista</h3>
+        <input type="text" id="input-nome-lista" placeholder="Nome da lista (Ex: Para chorar)" style="width:100%; padding:12px; margin-bottom:15px; background:#222; color:#fff; border:none; border-radius:5px; outline:none;">
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="fecharModalCriarLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Cancelar</button>
+            <button onclick="salvarNovaLista()" style="background:#ffcc00; color:#000; border:none; padding:10px 15px; border-radius:5px; font-weight:bold;">Criar Lista</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar Série/Filme na Lista -->
+<div id="modal-add-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
+    <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333; max-height:80%; overflow-y:auto;">
+        <h3 style="margin-bottom:15px; color:#fff;">Adicionar à Lista</h3>
+        <div id="opcoes-listas-add">
+            <!-- O JS injeta os botões das listas aqui -->
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:15px;">
+            <button onclick="fecharModalAddLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- TELA 1: Ver TODAS as Listas (Abre quando clica em "Listas ›") -->
+<div id="tela-todas-listas" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1500; overflow-y:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:15px; border-bottom:1px solid #222; position:sticky; top:0; background:#000; z-index:10;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button onclick="fecharTelaTodasListas()" style="background:transparent; color:#fff; border:none; font-size:22px; cursor:pointer;">←</button>
+            <h2 style="font-size:18px; margin:0;">Listas</h2>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button onclick="abrirModalCriarLista()" style="background:transparent; color:#ffcc00; border:none; font-size:24px; cursor:pointer; font-weight:bold;">+</button>
+        </div>
+    </div>
+    <!-- Lista vertical com todas as listas do usuário -->
+    <div id="conteudo-todas-listas" style="padding:15px; display:flex; flex-direction:column; gap:15px;">
+        <!-- O JS vai injetar os cards grandes de todas as listas aqui -->
+    </div>
+</div>
+
+<!-- TELA 2: Detalhes de UMA Lista Específica -->
+<div id="tela-ver-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1600; overflow-y:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:15px; border-bottom:1px solid #222; position:sticky; top:0; background:#000; z-index:10;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button onclick="fecharTelaVerLista()" style="background:transparent; color:#fff; border:none; font-size:22px; cursor:pointer;">←</button>
+            <h2 id="titulo-ver-lista" style="font-size:18px; margin:0; text-transform:lowercase;">Minha Lista</h2>
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:10px;">
+            <!-- Botão + para Adicionar série/filme nesta lista -->
+            <button onclick="abrirBuscaParaAdicionarNaLista()" title="Adicionar" style="background:#1a1a1a; color:#fff; border:none; border-radius:50%; width:34px; height:34px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
+            
+            <!-- Botão ⋮ para abrir o menu de ordenação -->
+            <div style="position:relative;">
+                <button onclick="toggleMenuListaOpcoes(event)" style="background:#1a1a1a; color:#fff; border:none; border-radius:50%; width:34px; height:34px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">⋮</button>
+                
+                <!-- Menu Dropdown de Ordenação -->
+                <div id="dropdown-opcoes-lista" class="escondido" style="position:absolute; right:0; top:42px; width:220px; background:#1c1c1e; border-radius:12px; padding:12px; box-shadow:0 8px 24px rgba(0,0,0,0.8); z-index:100;">
+                    <button onclick="editarDetalhesLista()" style="width:100%; text-align:left; background:none; border:none; color:#fff; padding:6px 0; font-size:14px; cursor:pointer;">Editar detalhes</button>
+                    <button onclick="excluirListaAtual()" style="width:100%; text-align:left; background:none; border:none; color:#ff453a; padding:6px 0; font-size:14px; cursor:pointer;">Excluir lista</button>
+                    
+                    <hr style="border:0; height:1px; background:#2c2c2e; margin:8px 0;">
+                    
+                    <span style="font-size:11px; color:#8e8e93; font-weight:bold;">ORDENAR POR</span>
+                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:6px; cursor:pointer;">
+                        <input type="radio" name="sort" value="activity" checked onchange="ordenarLista('activity')"> Última atividade
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:4px; cursor:pointer;">
+                        <input type="radio" name="sort" value="recent" onchange="ordenarLista('recent')"> Adicionado por último
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:4px; cursor:pointer;">
+                        <input type="radio" name="sort" value="alpha" onchange="ordenarLista('alpha')"> Alfabética
+                    </label>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Adicionar Série/Filme na Lista -->
-    <div id="modal-add-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:flex; align-items:center; justify-content:center;">
-        <div style="background:#111; padding:20px; border-radius:10px; width:80%; border:1px solid #333; max-height:80%; overflow-y:auto;">
-            <h3 style="margin-bottom:15px; color:#fff;">Adicionar à Lista</h3>
-            <div id="opcoes-listas-add">
-                <!-- O JavaScript vai colocar os botões com os nomes das suas listas aqui -->
-            </div>
-            <div style="display:flex; justify-content:flex-end; margin-top:15px;">
-                <button onclick="fecharModalAddLista()" style="background:transparent; color:#888; border:none; padding:10px; font-weight:bold;">Fechar</button>
-            </div>
+    <!-- Pôsteres da Lista -->
+    <div style="padding:15px;">
+        <h3 id="subtitulo-grupo-lista" style="font-size:14px; color:#aaa; margin-bottom:12px;">Assistir a seguir</h3>
+        <div id="conteudo-ver-lista" class="resultados-grid">
+            <!-- Pôsteres injetados via JS -->
         </div>
     </div>
-
-    <!-- Tela Inteira para Ver o Conteúdo de uma Lista -->
-    <div id="tela-ver-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:1500; overflow-y:auto;">
-        <div style="display:flex; align-items:center; padding:15px; border-bottom:1px solid #222;">
-            <button onclick="fecharTelaVerLista()" style="background:transparent; color:#fff; border:none; font-size:24px; margin-right:15px;">←</button>
-            <h2 id="titulo-ver-lista" style="font-size:18px;">Minha Lista</h2>
-        </div>
-        <div id="conteudo-ver-lista" class="resultados-grid" style="padding:15px;">
-            <!-- Os pôsteres das séries que estão dentro da lista vão aparecer aqui -->
-        </div>
-    </div>
+</div>
     <!-- ================= TELA: TODAS AS SÉRIES DO PERFIL ================= -->
     <div id="tela-todas-series" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:3500; overflow-y:auto; padding-bottom: 80px;">
         <!-- Cabeçalho Fixo -->
