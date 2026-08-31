@@ -2060,3 +2060,31 @@ function abrirTelaImportacao() {
 function fecharTelaImportacao() {
     document.getElementById('tela-importacao').classList.add('escondido');
 }
+
+// Função para abrir a tela com TODAS as listas (Tela Vertical)
+function abrirTelaTodasListas() {
+    document.getElementById('tela-todas-listas').classList.remove('escondido');
+    if (typeof renderizarTodasAsListas === 'function') {
+        renderizarTodasAsListas(); // Injeta as listas verticalmente
+    }
+}
+
+// Função para fechar a tela de Todas as Listas
+function fecharTelaTodasListas() {
+    document.getElementById('tela-todas-listas').classList.add('escondido');
+}
+
+// Alternar a exibição do menu de 3 pontos (⋮)
+function toggleMenuListaOpcoes(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    dropdown.classList.toggle('escondido');
+}
+
+// Fechar o menu de 3 pontos se clicar em qualquer lugar fora dele
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    if (dropdown && !dropdown.classList.contains('escondido')) {
+        dropdown.classList.add('escondido');
+    }
+});
