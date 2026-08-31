@@ -1160,29 +1160,19 @@ window.addItemNaLista = function(listaId, itemId, tipo, posterUrl, nome) {
         }
     }
 };
+// Variável para guardar qual lista estamos visualizando no momento
+let listaAtualId = null; 
 
-window.abrirTelaVerLista = function(listaId) {
-    const lista = minhasListas.find(l => l.id === listaId);
-    if(!lista) return;
-    document.getElementById('tela-ver-lista').classList.remove('escondido');
-    document.getElementById('titulo-ver-lista').innerText = lista.nome;
-    const container = document.getElementById('conteudo-ver-lista');
-    container.innerHTML = '';
+window.abrirTelaVerLista = function(id) {
+    listaAtualId = id; // Salvamos o ID da lista clicada!
     
-    if(lista.itens.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#888; width:100%;">Lista vazia.</p>';
-    } else {
-        lista.itens.forEach(item => {
-            const img = item.posterUrl ? `<img src="${item.posterUrl}">` : `<div style="background:#333;width:100%;height:220px;"></div>`;
-            const onclickFn = item.tipo === 'serie' ? `abrirDetalhesSerie(${item.id})` : `abrirDetalhesFilme(${item.id})`;
-            container.innerHTML += `
-                <div class="resultado-item" onclick="${onclickFn}">
-                    ${img}
-                    <div class="resultado-titulo">${item.nome}</div>
-                    <button class="btn-add-lista" onclick="event.stopPropagation(); removerItemLista(${lista.id}, ${item.id}, '${item.tipo}')" style="background:#c0392b; color:#fff;">Remover</button>
-                </div>
-            `;
-        });
+    const tela = document.getElementById('tela-ver-lista');
+    if(tela) tela.classList.remove('escondido');
+    
+    const lista = minhasListas.find(l => l.id === id);
+    if (lista) {
+        document.getElementById('titulo-ver-lista').innerText = lista.nome;
+        // Aqui também iria a sua lógica de desenhar os posteres na div #conteudo-ver-lista
     }
 };
 window.fecharTelaVerLista = function() { document.getElementById('tela-ver-lista').classList.add('escondido'); };
@@ -1196,6 +1186,60 @@ window.removerItemLista = function(listaId, itemId, tipo) {
     }
 };
 
+// Abrir e fechar o menu de opções
+window.toggleMenuListaOpcoes = function(event) {
+    event.stopPropagation(); // Evita que o clique feche o menu na mesma hora
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    if (dropdown) {
+        dropdown.classList.toggle('escondido');
+    }
+};
+
+// Fechar o menu se clicar em qualquer outro lugar da tela
+document.addEventListener('click', function() {
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    if (dropdown && !dropdown.classList.contains('escondido')) {
+        dropdown.classList.add('escondido');
+    }
+});
+
+// Editar o nome da lista
+window.editarDetalhesLista = function() {
+    document.getElementById('dropdown-opcoes-lista').classList.add('escondido'); // Fecha menu
+    if (!listaAtualId) return;
+    
+    const lista = minhasListas.find(l => l.id === listaAtualId);
+    if (!lista) return;
+    
+    const novoNome = prompt("Digite o novo nome para a lista:", lista.nome);
+    if (novoNome && novoNome.trim() !== "") {
+        lista.nome = novoNome.trim().toUpperCase();
+        salvarListasCus(); 
+        
+        document.getElementById('titulo-ver-lista').innerText = lista.nome; // Atualiza o título na hora
+        renderizarTodasAsListas(); 
+        renderizarListasPerfil();
+    }
+};
+
+// Excluir a lista
+window.excluirListaAtual = function() {
+    document.getElementById('dropdown-opcoes-lista').classList.add('escondido'); // Fecha menu
+    if (!listaAtualId) return;
+    
+    const confirmar = confirm("Tem certeza que deseja excluir esta lista? Esta ação não pode ser desfeita.");
+    if (confirmar) {
+        // Filtra a lista para remover a que tem o ID atual
+        minhasListas = minhasListas.filter(l => l.id !== listaAtualId);
+        salvarListasCus(); 
+        
+        renderizarTodasAsListas();
+        renderizarListasPerfil();
+        
+        fecharTelaVerLista(); // Fecha a tela da lista pois ela não existe mais
+        listaAtualId = null;
+    }
+};
 // ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
 // Cria o banco de dados específico para o Perfil
 function salvarPerfil() {
