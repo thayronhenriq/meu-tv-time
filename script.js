@@ -1170,6 +1170,1963 @@ window.abrirTelaVerLista = function(id) {
     if(tela) tela.classList.remove('escondido');
     
     const lista = minhasListas.find(l => l.id === id);
+    if (!lista) return;
+
+    document.getElementById('titulo-ver-lista').innerText = lista.nome;
+
+    const container = document.getElementById('conteudo-ver-lista');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!lista.itens || lista.itens.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#888; grid-column: 1 / -1; margin-top:30px;">Lista vazia. Toque no + para adicionar séries ou filmes.</p>';
+        return;
+    }
+
+    lista.itens.forEach(item => {
+        // Aceita tanto "nome" quanto "titulo", já que os dois nomes de campo foram usados em partes diferentes do app
+        const titulo = item.nome || item.titulo || 'Sem título';
+        const tituloSeguro = titulo.replace(/'/g, "\\'");
+        const abrirDetalhe = item.tipo === 'filme' ? `abrirDetalhesFilme(${item.id})` : `abrirDetalhesSerie(${item.id})`;
+
+        container.innerHTML += `
+            <div style="position:relative;">
+                <div onclick="${abrirDetalhe}" style="cursor:pointer; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#333;">
+                    ${item.posterUrl ? `<img src="${item.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:11px; color:#888; text-align:center; padding:5px;">${titulo}</div>`}
+                </div>
+                <p style="font-size:12px; color:#fff; margin:6px 0 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${titulo}</p>
+                <button onclick="event.stopPropagation(); removerItemLista(${lista.id}, ${item.id}, '${item.tipo}')" style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:50%; width:24px; height:24px; font-size:14px; cursor:pointer; line-height:1;">✕</button>
+            </div>`;
+    });
+};
+window.fecharTelaVerLista = function() { document.getElementById('tela-ver-lista').classList.add('escondido'); };
+
+window.removerItemLista = function(listaId, itemId, tipo) {
+    if(!confirm('Remover este item da lista?')) return;
+    let lista = minhasListas.find(l => l.id === listaId);
+    if(lista) {
+        lista.itens = lista.itens.filter(i => !(i.id === itemId && i.tipo === tipo));
+        salvarListasCus(); renderizarListasPerfil(); abrirTelaVerLista(listaId);
+    }
+};
+
+// Abrir e fechar o menu de opções
+window.toggleMenuListaOpcoes = function(event) {
+    event.stopPropagation(); // Evita que o clique feche o menu na mesma hora
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    if (dropdown) {
+        dropdown.classList.toggle('escondido');
+    }
+};
+
+// Fechar o menu se clicar em qualquer outro lugar da tela
+document.addEventListener('click', function() {
+    const dropdown = document.getElementById('dropdown-opcoes-lista');
+    if (dropdown && !dropdown.classList.contains('escondido')) {
+        dropdown.classList.add('escondido');
+    }
+});
+
+// Editar o nome da lista
+window.editarDetalhesLista = function() {
+    document.getElementById('dropdown-opcoes-lista').classList.add('escondido'); // Fecha menu
+    if (!listaAtualId) return;
+    
+    const lista = minhasListas.find(l => l.id === listaAtualId);
+    if (!lista) return;
+    
+    const novoNome = prompt("Digite o novo nome para a lista:", lista.nome);
+    if (novoNome && novoNome.trim() !== "") {
+        lista.nome = novoNome.trim().toUpperCase();
+        salvarListasCus(); 
+        
+        document.getElementById('titulo-ver-lista').innerText = lista.nome; // Atualiza o título na hora
+        renderizarTodasAsListas(); 
+        renderizarListasPerfil();
+    }
+};
+
+// Excluir a lista
+window.excluirListaAtual = function() {
+    document.getElementById('dropdown-opcoes-lista').classList.add('escondido'); // Fecha menu
+    if (!listaAtualId) return;
+    
+    const confirmar = confirm("Tem certeza que deseja excluir esta lista? Esta ação não pode ser desfeita.");
+    if (confirmar) {
+        // Filtra a lista para remover a que tem o ID atual
+        minhasListas = minhasListas.filter(l => l.id !== listaAtualId);
+        salvarListasCus(); 
+        
+        renderizarTodasAsListas();
+        renderizarListasPerfil();
+        
+        fecharTelaVerLista(); // Fecha a tela da lista pois ela não existe mais
+        listaAtualId = null;
+    }
+};
+// ================= 13. EDITAR PERFIL (AVATAR E BANNER) =================
+// Cria o banco de dados específico para o Perfil
+function salvarPerfil() {
+    localStorage.setItem('meuTvTimePerfil', JSON.stringify(meuPerfil));
+    // Salva na nuvem também, se estiver logado
+    if (typeof usuarioLogado !== 'undefined' && usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
+    }
+}
+
+// Atualiza o HTML com as fotos salvas
+window.renderizarImagensPerfil = function() {
+    const banner = document.getElementById('meu-banner-perfil');
+    const avatar = document.getElementById('meu-avatar-perfil');
+    
+    if (banner) {
+        banner.style.backgroundImage = meuPerfil.banner ? `url('${meuPerfil.banner}')` : 'none';
+    }
+    if (avatar) {
+        avatar.style.backgroundImage = meuPerfil.avatar ? `url('${meuPerfil.avatar}')` : 'none';
+    }
+};
+
+// Funções para abrir e fechar o modal inicial de Editar
+window.abrirModalEditarPerfil = function() {
+    document.getElementById('modal-editar-perfil').classList.remove('escondido');
+};
+window.fecharModalEditarPerfil = function() {
+    document.getElementById('modal-editar-perfil').classList.add('escondido');
+};
+
+// ====== NOVAS FUNÇÕES: REMOVER FOTO E BANNER ======
+window.removerFoto = function() {
+    meuPerfil.avatar = ''; 
+    salvarPerfil();
+    renderizarImagensPerfil(); 
+    fecharModalEditarPerfil();
+    window.location.reload();
+};
+
+window.removerBanner = function() {
+    meuPerfil.banner = ''; 
+    salvarPerfil();
+    renderizarImagensPerfil(); 
+    fecharModalEditarPerfil();
+    window.location.reload();
+};
+// ==================================================
+
+// Função que abre a galeria com todas as suas séries e filmes
+window.abrirSelecaoImagem = function(tipo) {
+    fecharModalEditarPerfil();
+    document.getElementById('modal-selecionar-imagem').classList.remove('escondido');
+    
+    const grid = document.getElementById('grid-selecao-imagens');
+    grid.innerHTML = '';
+
+    // Junta as séries e os filmes que você já adicionou em uma única lista
+    const todosOsItens = [...minhasSeries, ...meusFilmes];
+
+    if (todosOsItens.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; color:#888; width:100%; margin-top:30px;">Você precisa adicionar séries ou filmes na guia Explorar primeiro!</p>';
+        return;
+    }
+
+    // Desenha cada item como um botão selecionável
+    todosOsItens.forEach(item => {
+        if (item.posterUrl) {
+            grid.innerHTML += `
+                <div class="resultado-item" onclick="aplicarImagemPerfil('${tipo}', '${item.posterUrl}')" style="cursor:pointer; border: 2px solid transparent;">
+                    <img src="${item.posterUrl}" style="width:100%; height:150px; object-fit:cover; border-radius:5px;">
+                </div>
+            `;
+        }
+    });
+};
+
+window.fecharSelecaoImagem = function() {
+    document.getElementById('modal-selecionar-imagem').classList.add('escondido');
+};
+
+// Salva a imagem escolhida e atualiza a tela instantaneamente
+window.aplicarImagemPerfil = function(tipo, url) {
+    if (tipo === 'avatar') {
+        meuPerfil.avatar = url;
+    } else if (tipo === 'banner') {
+        meuPerfil.banner = url;
+    }
+    
+    salvarPerfil();
+    renderizarImagensPerfil();
+    fecharSelecaoImagem();
+};
+
+
+// ================= INICIALIZAÇÃO GERAL =================
+renderizarSeries();
+renderizarFilmes();
+renderizarPerfilSeries();
+renderizarPerfilFilmes();
+renderizarFavoritos();
+renderizarListasPerfil();
+atualizarEstatisticas();
+renderizarImagensPerfil(); 
+// ================= 14. IMPORTAÇÃO DE DADOS DO TV TIME =================
+
+function atualizarProgressoVisual(atual, total, mensagemCustomizada = '') {
+    const containerProgresso = document.getElementById('container-progresso');
+    const textoStatus = document.getElementById('texto-status-progresso');
+    const barraInterna = document.getElementById('barra-progresso-interna');
+
+    if (containerProgresso) containerProgresso.classList.remove('escondido');
+
+    const porcentagem = total > 0 ? Math.round((atual / total) * 100) : 0;
+
+    if (barraInterna) barraInterna.style.width = `${porcentagem}%`;
+    if (textoStatus) {
+        textoStatus.innerText = mensagemCustomizada || `Processando: ${atual} de ${total} (${porcentagem}%)`;
+    }
+}
+
+// ----------------------------------------------------------------------
+// 1. IMPORTAR LISTA DE SÉRIES
+// ----------------------------------------------------------------------
+window.importarSeries = function(evento) {
+        const arquivo = evento.target.files[0];
+        if (!arquivo) return;
+
+        const leitor = new FileReader();
+        
+        leitor.onload = async function(e) {
+            const texto = e.target.result;
+            const linhas = texto.split(/\r?\n/);
+            const seriesParaImportar = [];
+
+            for (let i = 1; i < linhas.length; i++) {
+                const linha = linhas[i].trim();
+                if (linha === '') continue;
+
+                const colunas = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                
+                if (colunas.length >= 1) {
+                    let nomeSerie = colunas[0].trim();
+                    nomeSerie = nomeSerie.replace(/^"|"$/g, ''); 
+                    
+                    if (nomeSerie && nomeSerie.toLowerCase() !== 'tv_show_name' && nomeSerie.toLowerCase() !== 'series_name') {
+                        if (!seriesParaImportar.includes(nomeSerie)) {
+                            seriesParaImportar.push(nomeSerie);
+                        }
+                    }
+                }
+            }
+
+            const totalSeries = seriesParaImportar.length;
+            if (totalSeries === 0) {
+                alert('Nenhuma série encontrada no arquivo.');
+                return;
+            }
+
+            let adicionadas = 0;
+
+            for (let i = 0; i < totalSeries; i++) {
+                const nomeBusca = seriesParaImportar[i];
+                atualizarProgressoVisual(i + 1, totalSeries, `Importando série: ${i + 1} de ${totalSeries} (${Math.round(((i+1)/totalSeries)*100)}%)`);
+
+                try {
+                    const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
+                    const dados = await resposta.json();
+
+                    if (dados.results && dados.results.length > 0) {
+                        const serieTMDB = dados.results[0]; 
+                        const jaExiste = minhasSeries.find(s => s.id === serieTMDB.id);
+                        
+                        if (!jaExiste) {
+                            const posterUrlPath = serieTMDB.poster_path ? `${IMG_URL}${serieTMDB.poster_path}` : '';
+                            
+                            minhasSeries.push({ 
+                                id: serieTMDB.id, 
+                                nome: serieTMDB.name.toUpperCase(), 
+                                posterUrl: posterUrlPath, 
+                                episodiosVistos: [], 
+                                favorito: false 
+                            });
+                            adicionadas++;
+                        }
+                    }
+                } catch(erro) {
+                    console.log('Erro ao importar a série:', nomeBusca);
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 350));
+            }
+
+            salvarSeries();
+            if (typeof renderizarSeries === 'function') renderizarSeries();
+            if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
+            if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+            
+            const containerProgresso = document.getElementById('container-progresso');
+            if (containerProgresso) containerProgresso.classList.add('escondido');
+
+            alert(`Importação de séries concluída! ${adicionadas} novas séries foram adicionadas à sua lista.`);
+            evento.target.value = ''; 
+        };
+
+        leitor.readAsText(arquivo);
+};
+
+
+// ----------------------------------------------------------------------
+// 2. IMPORTAR EPISÓDIOS ASSISTIDOS (Com mapeamento seguro de colunas)
+// ----------------------------------------------------------------------
+async function importarEpisodiosVistos(evento) {
+    const arquivo = evento.target.files[0];
+    if (!arquivo) return;
+
+    const leitor = new FileReader();
+
+    leitor.onload = async function(e) {
+        const texto = e.target.result;
+        const linhas = texto.split(/\r?\n/);
+        
+        if (linhas.length < 2) {
+            alert('O arquivo selecionado está vazio ou inválido.');
+            return;
+        }
+
+        function separarLinhaCSV(linha) {
+            return linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(col => col.trim().replace(/^"|"$/g, ''));
+        }
+
+        const cabecalho = separarLinhaCSV(linhas[0]).map(col => col.toLowerCase().trim());
+        console.log("Cabeçalhos encontrados:", cabecalho); // Ajuda a debugar no F12 se precisar
+        
+        // Buscas exatas e flexíveis para os nomes de colunas do TV Time
+        // Busca EXATA primeiro (evita pegar "episode_id" por engano) e só usa busca flexível como último recurso
+        let idxSerie = cabecalho.findIndex(c => c === 'series_name' || c === 'show_name') ;
+        if (idxSerie === -1) idxSerie = cabecalho.findIndex(c => c.includes('series') || c.includes('show') || c.includes('name'));
+
+        let idxTemporada = cabecalho.findIndex(c => c === 'season_number' || c === 's_no');
+        if (idxTemporada === -1) idxTemporada = cabecalho.findIndex(c => c.includes('season') || c.includes('temporada'));
+
+        let idxEpisodio = cabecalho.findIndex(c => c === 'episode_number' || c === 'ep_no');
+        if (idxEpisodio === -1) idxEpisodio = cabecalho.findIndex(c => (c.includes('episode') || c.includes('episodio')) && !c.includes('id'));
+
+        if (idxSerie === -1) idxSerie = 0; // Fallback padrão para a primeira coluna
+
+        const mapaSeriesEpisodios = {};
+        let totalEpisodiosLidos = 0;
+
+        for (let i = 1; i < linhas.length; i++) {
+            const linha = linhas[i].trim();
+            if (!linha) continue;
+
+            const colunas = separarLinhaCSV(linha);
+            const nomeSerie = colunas[idxSerie];
+
+            if (!nomeSerie || nomeSerie.toLowerCase().includes('name') || nomeSerie.toLowerCase().includes('show')) continue;
+
+            if (!mapaSeriesEpisodios[nomeSerie]) {
+                mapaSeriesEpisodios[nomeSerie] = new Set();
+            }
+
+            if (idxTemporada !== -1 && idxEpisodio !== -1 && colunas[idxTemporada] !== undefined && colunas[idxEpisodio] !== undefined) {
+                const tempNum = parseInt(colunas[idxTemporada], 10);
+                const epNum = parseInt(colunas[idxEpisodio], 10);
+
+                // Validação estricta: Temporadas e episódios reais não passam de 3 dígitos (evita pegar IDs gigantes de tracking)
+                if (!isNaN(tempNum) && !isNaN(epNum) && tempNum > 0 && tempNum < 100 && epNum > 0 && epNum < 999) {
+                    const epCodigo = `${tempNum}-${epNum}`;
+                    mapaSeriesEpisodios[nomeSerie].add(epCodigo);
+                    totalEpisodiosLidos++;
+                }
+            }
+        }
+
+        const listaNomesSeries = Object.keys(mapaSeriesEpisodios);
+        const totalSeries = listaNomesSeries.length;
+
+        if (totalSeries === 0) {
+            alert('Nenhum episódio válido encontrado. Verifique se escolheu o arquivo correto de tracking.');
+            return;
+        }
+
+        let adicionadas = 0;
+        let atualizadas = 0;
+
+        for (let i = 0; i < totalSeries; i++) {
+            const nomeBusca = listaNomesSeries[i];
+            const epsImportados = Array.from(mapaSeriesEpisodios[nomeBusca]);
+
+            atualizarProgressoVisual(i + 1, totalSeries, `Sincronizando: ${i + 1} de ${totalSeries} séries (${Math.round(((i+1)/totalSeries)*100)}%)`);
+
+            try {
+                const resposta = await fetch(`${BASE_URL}/search/tv?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(nomeBusca)}`);
+                const dados = await resposta.json();
+
+                if (dados.results && dados.results.length > 0) {
+                    const serieTMDB = dados.results[0];
+                    let serieNaLista = minhasSeries.find(s => s.id === serieTMDB.id);
+
+                    if (serieNaLista) {
+                        const epsAnteriores = serieNaLista.episodiosVistos || [];
+                        serieNaLista.episodiosVistos = Array.from(new Set([...epsAnteriores, ...epsImportados]));
+                        atualizadas++;
+                    } else {
+                        const posterUrlPath = serieTMDB.poster_path ? `${IMG_URL}${serieTMDB.poster_path}` : '';
+                        
+                        minhasSeries.push({
+                            id: serieTMDB.id,
+                            nome: serieTMDB.name.toUpperCase(),
+                            posterUrl: posterUrlPath,
+                            episodiosVistos: epsImportados,
+                            favorito: false
+                        });
+                        adicionadas++;
+                    }
+                }
+            } catch (erro) {
+                console.log('Erro ao buscar série no TMDB:', nomeBusca);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 350));
+        }
+
+        // Força salvamento persistente imediato
+        if (typeof salvarSeries === 'function') {
+            salvarSeries();
+        } else {
+            localStorage.setItem('minhasSeries', JSON.stringify(minhasSeries));
+        }
+
+        if (typeof renderizarSeries === 'function') renderizarSeries();
+        if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
+        if (typeof atualizarEstatisticas === 'function') atualizarEstatisticas();
+
+        const containerProgresso = document.getElementById('container-progresso');
+        if (containerProgresso) containerProgresso.classList.add('escondido');
+
+        alert(`Sucesso absoluto!\n• ${totalEpisodiosLidos} episódios válidos mapeados.\n• ${adicionadas} novas séries adicionadas.\n• ${atualizadas} séries atualizadas.`);
+        
+        evento.target.value = '';
+    };
+
+    leitor.readAsText(arquivo);
+}
+
+// ================= 15. TELA DE "TODAS AS SÉRIES" E FILTROS =================
+
+let sortAtual = 'adicionados'; 
+let filterAtual = 'tudo'; 
+
+let tempSort = 'adicionados';
+let tempFilter = 'tudo';
+
+window.abrirTodasAsSeriesPerfil = function() {
+    document.getElementById('tela-todas-series').classList.remove('escondido');
+    renderizarGridTodasAsSeries();
+};
+
+window.fecharTodasAsSeriesPerfil = function() {
+    document.getElementById('tela-todas-series').classList.add('escondido');
+};
+
+window.abrirFiltrosSeries = function() {
+    tempSort = sortAtual;
+    tempFilter = filterAtual;
+    atualizarVisualModalFiltros();
+    document.getElementById('modal-filtros-series').classList.remove('escondido');
+};
+
+window.fecharFiltrosSeries = function() {
+    document.getElementById('modal-filtros-series').classList.add('escondido');
+};
+
+window.selecionarSort = function(sort) {
+    tempSort = sort;
+    atualizarVisualModalFiltros();
+};
+
+window.selecionarFilter = function(filter) {
+    tempFilter = filter;
+    atualizarVisualModalFiltros();
+};
+
+window.atualizarVisualModalFiltros = function() {
+    const btns = document.querySelectorAll('.btn-sort');
+    btns.forEach(btn => btn.classList.remove('active'));
+    if(tempSort === 'assistidos') btns[0].classList.add('active');
+    if(tempSort === 'adicionados') btns[1].classList.add('active');
+    if(tempSort === 'alfabetica') btns[2].classList.add('active');
+
+    document.querySelectorAll('.radio-btn').forEach(radio => {
+        radio.classList.remove('ativo');
+    });
+    const radioAtivo = document.getElementById(`radio-${tempFilter}`);
+    if(radioAtivo) radioAtivo.classList.add('ativo');
+};
+
+window.redefinirFiltros = function() {
+    tempSort = 'adicionados';
+    tempFilter = 'tudo';
+    atualizarVisualModalFiltros();
+};
+
+window.aplicarFiltros = function() {
+    sortAtual = tempSort;
+    filterAtual = tempFilter;
+    fecharFiltrosSeries();
+    renderizarGridTodasAsSeries();
+};
+
+window.renderizarGridTodasAsSeries = function() {
+    const grid = document.getElementById('grid-todas-series');
+    grid.innerHTML = '';
+
+    if (minhasSeries.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; color:#888; grid-column: span 3; margin-top: 50px;">Nenhuma série adicionada.</p>';
+        return;
+    }
+
+    let seriesFiltradas = minhasSeries.filter(serie => {
+        const temEpisodios = serie.episodiosVistos && serie.episodiosVistos.length > 0;
+        if (filterAtual === 'assistindo') return temEpisodios;
+        if (filterAtual === 'naocomecei') return !temEpisodios;
+        return true; 
+    });
+
+    let seriesOrdenadas = [...seriesFiltradas];
+    
+    if (sortAtual === 'alfabetica') {
+        seriesOrdenadas.sort((a, b) => a.nome.localeCompare(b.nome));
+    } 
+    else if (sortAtual === 'adicionados') {
+        seriesOrdenadas.reverse(); 
+    } 
+    else if (sortAtual === 'assistidos') {
+        seriesOrdenadas.reverse().sort((a, b) => {
+            const aEps = a.episodiosVistos ? a.episodiosVistos.length : 0;
+            const bEps = b.episodiosVistos ? b.episodiosVistos.length : 0;
+            if (aEps > 0 && bEps === 0) return -1;
+            if (aEps === 0 && bEps > 0) return 1;
+            return 0;
+        });
+    }
+
+    seriesOrdenadas.forEach(serie => {
+        const imagemHtml = serie.posterUrl 
+            ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">`
+            : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:10px; color:#888; padding:5px;">${serie.nome}</div>`;
+
+        let progressBar = '';
+        if (serie.episodiosVistos && serie.episodiosVistos.length > 0) {
+            progressBar = `<div style="position:absolute; bottom:0; left:0; width:60%; height:5px; background:#ffcc00; z-index:2;"></div>`;
+        }
+
+        grid.innerHTML += `
+            <div style="width:100%; aspect-ratio: 2/3; position:relative; overflow:hidden; cursor:pointer;" onclick="abrirDetalhesSerie(${serie.id})">
+                ${imagemHtml}
+                <div style="position:absolute; bottom:0; left:0; width:100%; height:20px; background:linear-gradient(to top, rgba(0,0,0,0.8), transparent);"></div>
+                ${progressBar}
+            </div>
+        `;
+    });
+};
+
+// ================= 16. GRADES DE FILMES E FAVORITOS =================
+window.abrirGradePerfil = function(tipo) {
+    const tela = document.getElementById('tela-grade-generica');
+    const titulo = document.getElementById('titulo-grade-generica');
+    const grid = document.getElementById('grid-generica');
+    const menuFavoritos = document.getElementById('menu-favoritos-tvtime');
+    
+    tela.classList.remove('escondido');
+    grid.innerHTML = '';
+    
+    let lista = [];
+    let isSerie = true;
+
+    if (tipo === 'seriesFav') {
+        titulo.innerText = 'Séries favoritas';
+        lista = minhasSeries.filter(s => s.favorito);
+        menuFavoritos.style.display = 'block'; 
+        isSerie = true;
+    } else if (tipo === 'filmes') {
+        titulo.innerText = 'Filmes';
+        lista = meusFilmes;
+        menuFavoritos.style.display = 'none'; 
+        isSerie = false;
+    } else if (tipo === 'filmesFav') {
+        titulo.innerText = 'Filmes favoritos';
+        lista = meusFilmes.filter(f => f.favorito);
+        menuFavoritos.style.display = 'block'; 
+        isSerie = false;
+    }
+
+    if (lista.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; color:#888; grid-column: span 3; margin-top: 50px;">Nenhum item encontrado.</p>';
+        return;
+    }
+
+    lista.forEach(item => {
+        const imagemHtml = item.posterUrl 
+            ? `<img src="${item.posterUrl}" style="width:100%; height:100%; object-fit:cover;">`
+            : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; font-size:10px; color:#888; padding:5px;">${item.nome}</div>`;
+
+        const onclickFn = isSerie ? `abrirDetalhesSerie(${item.id})` : `abrirDetalhesFilme(${item.id})`;
+
+        grid.innerHTML += `
+            <div style="width:100%; aspect-ratio: 2/3; position:relative; overflow:hidden; cursor:pointer;" onclick="${onclickFn}">
+                ${imagemHtml}
+            </div>
+        `;
+    });
+};
+
+window.fecharGradePerfil = function() {
+    document.getElementById('tela-grade-generica').classList.add('escondido');
+};
+
+// ================= 17. DETALHES DO EPISÓDIO (COM NAVEGAÇÃO) =================
+
+window.abrirDetalhesEpisodio = async function(serieId, seasonNum, epNum) {
+    const tela = document.getElementById('tela-detalhes-episodio');
+    const conteudo = document.getElementById('conteudo-detalhes-episodio');
+    tela.classList.remove('escondido');
+    conteudo.innerHTML = '<p style="text-align:center; margin-top:50px; color:#888;">Carregando episódio...</p>';
+
+    try {
+        // Busca os dados do episódio e da série
+        const resp = await fetch(`${BASE_URL}/tv/${serieId}/season/${seasonNum}/episode/${epNum}?api_key=${API_KEY}&language=pt-BR`);
+        const ep = await resp.json();
+        
+        const respSerie = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR`);
+        const serieData = await respSerie.json();
+
+        // ================= LÓGICA DO CARROSSEL (ANTERIOR / PRÓXIMO) =================
+        const temporadaAtual = serieData.seasons.find(s => s.season_number === seasonNum);
+        const totalEpsTemporada = temporadaAtual ? temporadaAtual.episode_count : 999;
+
+        let prevTemp = seasonNum, prevEp = epNum - 1, hasPrev = true;
+        let nextTemp = seasonNum, nextEp = epNum + 1, hasNext = true;
+
+        // Calcula o episódio ANTERIOR
+        if (prevEp < 1) {
+            if (seasonNum > 1) {
+                prevTemp = seasonNum - 1;
+                const tempAnterior = serieData.seasons.find(s => s.season_number === prevTemp);
+                if (tempAnterior && tempAnterior.episode_count > 0) prevEp = tempAnterior.episode_count;
+                else hasPrev = false;
+            } else {
+                hasPrev = false; // É o T01E01, não tem anterior
+            }
+        }
+
+        // Calcula o PRÓXIMO episódio
+        if (nextEp > totalEpsTemporada) {
+            const tempSeguinte = serieData.seasons.find(s => s.season_number === seasonNum + 1);
+            if (tempSeguinte && tempSeguinte.episode_count > 0) {
+                nextTemp = seasonNum + 1;
+                nextEp = 1; // Pula para o E01 da próxima temporada
+            } else {
+                hasNext = false; // É o último episódio da série (ou da temporada atual disponível)
+            }
+        }
+
+        // Monta os botões flutuantes (só aparecem se existir episódio)
+        const btnPrevHtml = hasPrev ? `<button onclick="abrirDetalhesEpisodio(${serieId}, ${prevTemp}, ${prevEp})" style="position:absolute; left:15px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:white; border:none; width:45px; height:45px; border-radius:50%; font-size:20px; z-index:10; cursor:pointer;">❮</button>` : '';
+        const btnNextHtml = hasNext ? `<button onclick="abrirDetalhesEpisodio(${serieId}, ${nextTemp}, ${nextEp})" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:white; border:none; width:45px; height:45px; border-radius:50%; font-size:20px; z-index:10; cursor:pointer;">❯</button>` : '';
+        // ==============================================================================
+
+
+        // Organiza as informações visuais
+        const img = ep.still_path ? `${IMG_URL}${ep.still_path}` : (serieData.backdrop_path ? `${IMG_URL}${serieData.backdrop_path}` : '');
+        const tForm = String(seasonNum).padStart(2, '0');
+        const eForm = String(epNum).padStart(2, '0');
+        const dataAr = ep.air_date ? ep.air_date.split('-').reverse().join('/') : 'Data não informada';
+        const sinopse = ep.overview || "Nenhuma sinopse disponível para este episódio ainda.";
+        const tituloEpisodio = ep.name || `Episódio ${epNum}`;
+        
+        // Verifica se o episódio já foi marcado como visto
+        const serieSalva = minhasSeries.find(s => s.id === serieId);
+        const isVisto = (serieSalva && serieSalva.episodiosVistos && serieSalva.episodiosVistos.includes(`${seasonNum}-${epNum}`));
+        const corBotao = isVisto ? '#78b833' : '#333';
+
+        // Desenha a tela
+        conteudo.innerHTML = `
+            <!-- CONTAINER DA IMAGEM COM OS BOTÕES DO CARROSSEL -->
+            <div style="position:relative; height:250px; background:linear-gradient(to bottom, transparent, #000), url('${img}') center/cover; margin-top: -70px; z-index: 1;">
+                ${btnPrevHtml}
+                ${btnNextHtml}
+            </div>
+            
+            <!-- CAIXA DE TEXTO (AQUI ESTÁ A CORREÇÃO DE Z-INDEX) -->
+            <div style="padding: 20px; margin-top: -30px; position: relative; z-index: 2;">
+                <div onclick="fecharDetalhesEpisodio(); abrirDetalhesSerie(${serieId})" style="display:inline-block; border: 1px solid #555; border-radius: 15px; padding: 3px 10px; font-size: 11px; font-weight: bold; margin-bottom: 15px; color: #ccc; cursor:pointer; background: #000;">
+                    ${serieData.name.toUpperCase()} &gt;
+                </div>
+                
+                <h2 style="font-size:26px; font-weight:bold; margin-bottom: 5px;">T${tForm} | E${eForm}</h2>
+                <h3 style="font-size:16px; color:#aaa; font-weight: normal; margin-bottom: 20px;">${tituloEpisodio}</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div style="font-size: 13px; color: #888;">📅 ${dataAr}</div>
+                    <button onclick="marcarEpisodioDetalhe(${serieId}, ${seasonNum}, ${epNum}, this)" style="background: ${corBotao}; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">✓</button>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">AVALIAR ESTE EPISÓDIO</h4>
+                    <div style="display: flex; justify-content: center; gap: 15px; font-size: 26px; color: #ffcc00;">
+                        <span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h4 style="font-size: 11px; color: #888; letter-spacing: 1px; margin-bottom: 10px;">COMO VOCÊ SE SENTIU?</h4>
+                    <div style="display: flex; justify-content: center; gap: 12px; font-size: 32px;">
+                        <span>😲</span><span>😂</span><span>😭</span><span>😍</span><span>😡</span>
+                    </div>
+                </div>
+
+                <h4 style="font-size: 16px; margin-bottom: 10px; font-weight: bold;">Informações do episódio</h4>
+                <p style="font-size:14px; line-height:1.6; color:#ccc; text-align:justify;">${sinopse}</p>
+            </div>
+        `;
+    } catch(e) {
+        conteudo.innerHTML = '<p style="text-align:center; margin-top:50px;">Erro de conexão ao carregar o episódio.</p>';
+    }
+};
+
+
+
+window.fecharDetalhesEpisodio = function() {
+    document.getElementById('tela-detalhes-episodio').classList.add('escondido');
+};
+
+// Lógica para marcar/desmarcar o episódio diretamente dessa tela
+window.marcarEpisodioDetalhe = function(serieId, tempNum, epNum, botao) {
+    let serie = minhasSeries.find(s => s.id === serieId);
+    if (!serie) return alert('Adicione a série à sua lista primeiro!');
+    if (!serie.episodiosVistos) serie.episodiosVistos = [];
+    
+    const epId = `${tempNum}-${epNum}`;
+    const index = serie.episodiosVistos.indexOf(epId);
+    
+    if (index > -1) {
+        serie.episodiosVistos.splice(index, 1);
+        botao.style.background = '#333'; // Fica cinza
+    } else {
+        serie.episodiosVistos.push(epId);
+        botao.style.background = '#78b833'; // Fica verde
+    }
+    
+    salvarSeries(); 
+    atualizarEstatisticas(); 
+    renderizarSeries(); // Atualiza a aba Minha Lista no fundo
+};
+
+// ================= 18. CALENDÁRIO "EM BREVE" =================
+
+window.mudarAbaSeries = function(aba) {
+    // Alterna o visual dos botões
+    document.getElementById('aba-minha-lista').classList.toggle('active', aba === 'lista');
+    document.getElementById('aba-em-breve').classList.toggle('active', aba === 'embreve');
+
+    // Alterna qual div fica visível
+    document.getElementById('conteudo-minha-lista').classList.toggle('escondido', aba !== 'lista');
+    document.getElementById('conteudo-em-breve').classList.toggle('escondido', aba !== 'embreve');
+
+    // Se clicou no calendário, manda o sistema calcular as datas
+    if (aba === 'embreve') {
+        renderizarEmBreve();
+    }
+};
+
+window.renderizarEmBreve = async function() {
+    const container = document.getElementById('lista-em-breve');
+    if (!container) return;
+    
+    if (minhasSeries.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Sua lista está vazia.</p>';
+        return;
+    }
+
+    container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Sincronizando calendário...</p>';
+
+    let episodiosCalendario = [];
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Zera as horas para comparar só o dia
+
+    try {
+        // Dispara uma busca rápida no TMDB para TODAS as séries da sua lista de uma vez
+        const promessas = minhasSeries.map(serie =>
+            fetch(`${BASE_URL}/tv/${serie.id}?api_key=${API_KEY}&language=pt-BR`).then(res => res.json())
+        );
+        const resultados = await Promise.all(promessas);
+
+        resultados.forEach((dados, index) => {
+            const serieLocal = minhasSeries[index];
+            if (!dados.id) return;
+
+            // Função que analisa a data do episódio e joga no calendário se for recente/futuro
+            const processarEpisodio = (ep) => {
+                if (!ep || !ep.air_date) return;
+                const dataEp = new Date(ep.air_date + 'T00:00:00');
+                
+                // Calcula a diferença de dias (negativo = passado, positivo = futuro)
+                const diffDias = Math.floor((dataEp - hoje) / (1000 * 60 * 60 * 24));
+
+                // Filtro: Mostra episódios dos últimos 15 dias até os próximos 30 dias
+                if (diffDias >= -15 && diffDias <= 30) {
+                    episodiosCalendario.push({
+                        serieId: serieLocal.id,
+                        nomeSerie: serieLocal.nome,
+                        temporada: ep.season_number,
+                        episodio: ep.episode_number,
+                        titulo: ep.name,
+                        data: dataEp,
+                        diffDias: diffDias,
+                        img: ep.still_path ? `${IMG_URL}${ep.still_path}` : (serieLocal.posterUrl || '')
+                    });
+                }
+            };
+
+            // Processa o último lançado e o próximo
+            processarEpisodio(dados.last_episode_to_air);
+            processarEpisodio(dados.next_episode_to_air);
+        });
+
+        // Remove itens duplicados (ocorre quando o "último" e o "próximo" caem no mesmo dia)
+        const mapUnicos = new Map();
+        episodiosCalendario.forEach(ep => mapUnicos.set(`${ep.serieId}-${ep.temporada}-${ep.episodio}`, ep));
+        episodiosCalendario = Array.from(mapUnicos.values());
+
+        // Ordena tudo cronologicamente (dos mais antigos exibidos para os do futuro)
+        episodiosCalendario.sort((a, b) => a.data - b.data);
+
+        if (episodiosCalendario.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum lançamento nos últimos ou próximos dias.</p>';
+            return;
+        }
+
+        // Agrupa os episódios pelos rótulos de data (Ex: HOJE, ONTEM, AMANHÃ)
+        const grupos = {};
+        episodiosCalendario.forEach(ep => {
+            let labelData = '';
+            if (ep.diffDias === 0) labelData = 'HOJE';
+            else if (ep.diffDias === -1) labelData = 'ONTEM';
+            else if (ep.diffDias === 1) labelData = 'AMANHÃ';
+            else {
+                // Formata datas distantes como "13 DE JUL. DE 2026"
+                const opcoes = { day: '2-digit', month: 'short', year: 'numeric' };
+                labelData = ep.data.toLocaleDateString('pt-BR', opcoes).toUpperCase().replace(' DE ', ' DE ');
+            }
+
+            if (!grupos[labelData]) grupos[labelData] = [];
+            grupos[labelData].push(ep);
+        });
+
+        // Monta o visual da tela
+        let html = '';
+        for (const [dataLabel, eps] of Object.entries(grupos)) {
+            // Pílula separadora de data
+            html += `
+                <div style="display: flex; justify-content: center; margin: 25px 0 10px 0;">
+                    <span style="background: #555; color: #fff; padding: 4px 15px; border-radius: 20px; font-size: 11px; font-weight: bold;">${dataLabel}</span>
+                </div>
+            `;
+
+            // Desenha os cartões de episódios daquele dia
+            eps.forEach(ep => {
+                const tForm = String(ep.temporada).padStart(2, '0');
+                const eForm = String(ep.episodio).padStart(2, '0');
+
+                // Verifica se já foi assistido
+                const s = minhasSeries.find(x => x.id === ep.serieId);
+                const isVisto = s && s.episodiosVistos && s.episodiosVistos.includes(`${ep.temporada}-${ep.episodio}`);
+                const classeVisto = isVisto ? 'visto' : '';
+
+                // Lógica das Etiquetas Coloridas
+                let tagsHtml = '';
+                if (ep.episodio === 1) tagsHtml += '<span style="background: #fff; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px;">PREMIERE</span>';
+                if (ep.diffDias >= 0) tagsHtml += '<span style="background: #ffcc00; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-right: 5px;">NOVO</span>';
+                if (ep.diffDias < 0 || (ep.diffDias === 0 && isVisto)) tagsHtml += '<span style="background: #78b833; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">EXIBIDO</span>';
+
+                const imagemHtml = ep.img ? `<img src="${ep.img}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+
+                html += `
+                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${ep.serieId}, ${ep.temporada}, ${ep.episodio})">
+                        <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${ep.serieId})">
+                            ${imagemHtml}
+                        </div>
+                        <div class="serie-info">
+                          
+window.salvarFilmes = function() {
+    localStorage.setItem('meuTvTimeFilmes', JSON.stringify(meusFilmes));
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ filmes: meusFilmes }, { merge: true });
+};
+
+// Garante que o banner e a foto sejam salvos na nuvem quando editados
+window.salvarPerfil = function() {
+    localStorage.setItem('meuTvTimePerfil', JSON.stringify(meuPerfil));
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ perfil: meuPerfil }, { merge: true });
+};
+
+window.salvarListasCus = function() {
+    localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas));
+    if (usuarioLogado) db.collection('usuarios').doc(usuarioLogado.uid).set({ listas: minhasListas }, { merge: true });
+};
+
+// ================= REMOÇÃO DE DADOS SEGURA E IMEDIATA =================
+window.removerSerie = function(id) {
+    if (confirm("Deseja remover esta série do seu perfil?")) {
+        // 1. Remove da lista local do celular
+        minhasSeries = minhasSeries.filter(s => s.id !== id);
+        localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
+        
+        // 2. Remove de dentro das listas personalizadas locais
+        minhasListas = minhasListas.map(lista => {
+            if (lista.itens) {
+                lista.itens = lista.itens.filter(item => !(item.id === id && item.tipo === 'serie'));
+            }
+            return lista;
+        });
+        localStorage.setItem('meuTvTimeListasCus', JSON.stringify(minhasListas));
+
+        // 3. Atualiza a nuvem NA HORA se estiver logado
+        if (usuarioLogado) {
+            db.collection('usuarios').doc(usuarioLogado.uid).set({ 
+                series: minhasSeries,
+                listas: minhasListas
+            }, { merge: true }).then(() => {
+                if (typeof fecharDetalhes === 'function') fecharDetalhes();
+                window.location.reload();
+            }).catch(error => {
+                alert("Erro ao salvar remoção na nuvem: " + error.message);
+            });
+        } else {
+            if (typeof fecharDetalhes === 'function') fecharDetalhes();
+            window.location.reload();
+        }
+    }
+};
+window.adicionarSerieDiretoDetalhes = function(id, nome, posterUrl) {
+    // Adiciona na lista local do celular
+    minhasSeries.push({ id, nome: nome.toUpperCase(), posterUrl, episodiosVistos: [], favorito: false });
+    
+    // Salva no LocalStorage
+    localStorage.setItem('meuTvTimeSeries', JSON.stringify(minhasSeries));
+    
+    // Atualiza as grades invisivelmente ao fundo
+    renderizarSeries(); 
+    renderizarPerfilSeries(); 
+    atualizarEstatisticas();
+    
+    // O SEGREDO: Atualiza a tela de busca no fundo para o botão ficar verde!
+    if (typeof ultimosResultadosBusca !== 'undefined' && ultimosResultadosBusca.length > 0) {
+        renderizarResultadosBusca(ultimosResultadosBusca);
+    }
+    
+    // Salva na nuvem silenciosamente se estiver logado
+    if (usuarioLogado) {
+        db.collection('usuarios').doc(usuarioLogado.uid).set({ series: minhasSeries }, { merge: true }).then(() => {
+            // Recarrega a própria tela de detalhes para computar a mudança visual (botão vermelho)
+            abrirDetalhesSerie(id);
+        });
+    } else {
+        abrirDetalhesSerie(id);
+    }
+};
+
+
+window.removerFoto = function() { 
+    meuPerfil.avatar = ''; 
+    salvarPerfil(); 
+    window.location.reload(); 
+};
+
+window.removerBanner = function() { 
+    meuPerfil.banner = ''; 
+    salvarPerfil(); 
+    window.location.reload(); 
+};
+
+
+// ================= 1. DADOS E MEMÓRIA =================
+let minhasSeries = JSON.parse(localStorage.getItem('meuTvTimeSeries')) || [];
+let meusFilmes = JSON.parse(localStorage.getItem('meuTvTimeFilmes')) || [];
+let minhasListas = JSON.parse(localStorage.getItem('meuTvTimeListasCus')) || []; // Banco de dados das Listas
+let meuPerfil = JSON.parse(localStorage.getItem('meuTvTimePerfil')) || { avatar: '', banner: '' };
+
+// ================= ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE) =================
+let modoExibicaoMinhaLista = localStorage.getItem('modoTvTimeExibicao') || 'lista';
+
+window.alternarModoExibicao = function() {
+    // Se está em lista, vira grade. Se está em grade, vira lista.
+    modoExibicaoMinhaLista = modoExibicaoMinhaLista === 'lista' ? 'grade' : 'lista';
+    localStorage.setItem('modoTvTimeExibicao', modoExibicaoMinhaLista);
+    renderizarSeries(); // Manda desenhar a tela de novo instantaneamente
+};
+// ================= ALTERNAR MODO DE EXIBIÇÃO (FILMES) =================
+let modoExibicaoFilmes = localStorage.getItem('modoTvTimeFilmesExibicao') || 'lista';
+
+window.alternarModoExibicaoFilmes = function() {
+    modoExibicaoFilmes = modoExibicaoFilmes === 'lista' ? 'grade' : 'lista';
+    localStorage.setItem('modoTvTimeFilmesExibicao', modoExibicaoFilmes);
+    renderizarFilmes(); 
+};
+
+
+// ================= 2. RENDERIZAR MINHA LISTA (SÉRIES) =================
+// ================= SINCRONIZAR PROGRESSO (Temporadas/Episódios reais do TMDB) =================
+window.sincronizarProgressoSeries = async function() {
+    if (!minhasSeries || minhasSeries.length === 0) return;
+
+    const total = minhasSeries.length;
+    const tamanhoDoLote = 15; // Quantas séries buscamos ao mesmo tempo em cada rodada
+    let processadas = 0;
+
+    atualizarProgressoVisual(0, total, `Sincronizando progresso: 0 de ${total} séries...`);
+
+    for (let inicio = 0; inicio < total; inicio += tamanhoDoLote) {
+        const lote = minhasSeries.slice(inicio, inicio + tamanhoDoLote);
+
+        const promessas = lote.map(serie =>
+            fetch(`${BASE_URL}/tv/${serie.id}?api_key=${API_KEY}&language=pt-BR`)
+                .then(res => res.json())
+                .catch(() => null)
+        );
+
+        const resultados = await Promise.all(promessas);
+
+        resultados.forEach((dados, i) => {
+            if (dados && dados.id) {
+                const serieLocal = lote[i];
+                // Guarda só o essencial (season_number + episode_count) para não estourar o limite de 1MB do Firestore
+                serieLocal.seasons = (dados.seasons || []).map(s => ({
+                    season_number: s.season_number,
+                    episode_count: s.episode_count
+                }));
+                serieLocal.status = dados.status || '';
+                serieLocal.number_of_seasons = dados.number_of_seasons || 0;
+            }
+        });
+
+        processadas += lote.length;
+        atualizarProgressoVisual(processadas, total, `Sincronizando progresso: ${processadas} de ${total} séries (${Math.round((processadas/total)*100)}%)`);
+
+        // Pequena pausa entre os lotes pra não sobrecarregar a API do TMDB
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    salvarSeries();
+    if (typeof renderizarSeries === 'function') renderizarSeries();
+    if (typeof renderizarPerfilSeries === 'function') renderizarPerfilSeries();
+
+    const containerProgresso = document.getElementById('container-progresso');
+    if (containerProgresso) containerProgresso.classList.add('escondido');
+
+    alert(`Sincronização concluída! Agora o app sabe exatamente quantos episódios cada temporada tem, e as séries já completas vão sair de "Assistir a Seguir".`);
+};
+
+
+function renderizarSeries() {
+    const listaContainer = document.getElementById('lista-series');
+    if (!listaContainer) return;
+    listaContainer.innerHTML = '';
+
+    // 1. Desenha o Botão de Alternar (Lista / Grade) no topo direito
+    const iconeBotao = modoExibicaoMinhaLista === 'lista' ? '⊞' : '☰'; 
+    const corBotao = modoExibicaoMinhaLista === 'grade' ? '#ffcc00' : '#888';
+    
+    listaContainer.innerHTML += `
+        <div style="display: flex; justify-content: flex-end; padding: 10px 15px;">
+            <button onclick="alternarModoExibicao()" style="background: none; border: 1px solid #333; border-radius: 5px; color: ${corBotao}; font-size: 22px; cursor: pointer; padding: 2px 10px; display: flex; align-items: center; justify-content: center; height: 35px;">
+                ${iconeBotao}
+            </button>
+        </div>
+    `;
+
+    if(minhasSeries.length === 0) {
+        listaContainer.innerHTML += '<p style="text-align:center; color:#888; margin-top:30px;">Sua lista está vazia.</p>';
+        return;
+    }
+
+    // 2. Separa as séries nas categorias
+    const assistirASeguir = [];
+    const semAssistirTempo = [];
+    const naoIniciadas = [];
+    const completas = [];
+    
+    const trintaDiasEmMs = 30 * 24 * 60 * 60 * 1000;
+    const agora = Date.now();
+
+    // Função que calcula qual seria o próximo episódio, e diz se a série já terminou de verdade
+    // (só consegue saber isso com certeza se a série já foi sincronizada com o TMDB via "seasons")
+    // Função que calcula qual seria o próximo episódio, e diz se a série já terminou
+const calcularProximoEpisodio = (serie) => {
+    let proxTemp = 1, proxEp = 1, finalizada = false;
+    let ultimoTemp = 0, ultimoEp = 0; // Novas variáveis para guardar o último visto
+
+    if (!serie.episodiosVistos || serie.episodiosVistos.length === 0) {
+        return { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp };
+    }
+
+    let vistos = serie.episodiosVistos.map(v => {
+        let p = v.split('-'); return { t: parseInt(p[0]), e: parseInt(p[1]) };
+    });
+    
+    vistos.sort((a, b) => a.t !== b.t ? a.t - b.t : a.e - b.e);
+    let ultimoVisto = vistos[vistos.length - 1];
+    
+    // Guardando o último episódio assistido
+    ultimoTemp = ultimoVisto.t; 
+    ultimoEp = ultimoVisto.e;
+    
+    proxTemp = ultimoTemp; 
+    proxEp = ultimoEp + 1;
+
+    if (serie.seasons && serie.seasons.length > 0) {
+        const temporadaAtual = serie.seasons.find(s => s.season_number === ultimoVisto.t);
+        if (temporadaAtual && proxEp > temporadaAtual.episode_count) {
+            // Já assistiu todos os episódios dessa temporada, tenta ir pra próxima
+            const proxTemporada = serie.seasons.find(s => s.season_number === ultimoVisto.t + 1 && s.episode_count > 0);
+            if (proxTemporada) {
+                proxTemp = proxTemporada.season_number;
+                proxEp = 1;
+            } else {
+                finalizada = true; // Não existe próxima temporada: já assistiu tudo
+            }
+        }
+    }
+
+    return { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp };
+};
+
+    minhasSeries.forEach(serie => {
+        const qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
+        
+        if (qtdVistos === 0) {
+            naoIniciadas.push(serie);
+            return;
+        }
+
+        const { finalizada } = calcularProximoEpisodio(serie);
+
+        if (finalizada) {
+            completas.push(serie);
+        } else if (serie.ultimaAtualizacao && (agora - serie.ultimaAtualizacao > trintaDiasEmMs)) {
+            semAssistirTempo.push(serie);
+        } else {
+            assistirASeguir.push(serie); // Padrão para séries ativas
+        }
+    });
+
+    // 3. Função inteligente que desenha os blocos das categorias
+    const gerarHTMLGrupo = (titulo, seriesDoGrupo) => {
+        if (seriesDoGrupo.length === 0) return ''; // Se a categoria estiver vazia, não desenha nada
+
+        let html = `
+            <div style="display: flex; justify-content: center; margin: 25px 0 15px 0; clear: both;">
+                <span style="background: #555; color: #fff; padding: 4px 15px; border-radius: 20px; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${titulo}</span>
+            </div>
+        `;
+
+if (modoExibicaoMinhaLista === 'lista') {
+            
+            // --- MODO LISTA (CORRIGIDO) ---
+            seriesDoGrupo.forEach(serie => {
+                const { proxTemp, proxEp, finalizada, ultimoTemp, ultimoEp } = calcularProximoEpisodio(serie);
+
+                // Se a série estiver finalizada, mostra o último episódio visto. Se não, mostra o próximo.
+                const tExibir = finalizada ? ultimoTemp : proxTemp;
+                const eExibir = finalizada ? ultimoEp : proxEp;
+
+                const tForm = String(tExibir).padStart(2, '0');
+                const eForm = String(eExibir).padStart(2, '0');
+                const img = serie.posterUrl ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+
+                // Altera o subtitulo e a classe do botão (se finalizada, fica verde com a classe "visto")
+                const subtitulo = finalizada ? "Assistido" : "Próximo episódio";
+                const classeBtn = finalizada ? "check-btn visto" : "check-btn";
+
+                html += `
+                    <div class="serie-card" style="position:relative; cursor:pointer;" onclick="abrirDetalhesEpisodio(${serie.id}, ${tExibir}, ${eExibir})">
+                        <div class="img-container" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${img}</div>
+                        <div class="serie-info">
+                            <span class="serie-tag" onclick="event.stopPropagation(); abrirDetalhesSerie(${serie.id})">${serie.nome} <i>&gt;</i></span>
+                            <span class="serie-ep-info">T${tForm} | E${eForm}</span>
+                            <span class="serie-ep-title" style="color:#aaa; font-size:12px;">${subtitulo}</span>
+                        </div>
+                        <div class="serie-action">
+                            <button class="${classeBtn}" onclick="event.stopPropagation(); toggleDoCartao(${serie.id}, ${tExibir}, ${eExibir})">✓</button>
+                        </div>
+                    </div>`;
+            });
+
+        } else {
+            
+            // --- MODO GRADE (BANNERS COM PROGRESSO) ---
+            html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 20px;">';
+            
+            seriesDoGrupo.forEach(serie => {
+                const img = serie.posterUrl 
+                    ? `<img src="${serie.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                    : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${serie.nome}</div>`;
+                
+                // Cálculo visual da barra de progresso
+                let qtdVistos = serie.episodiosVistos ? serie.episodiosVistos.length : 0;
+                let porcentagem = 0;
+                if (qtdVistos > 0) {
+                    porcentagem = Math.min((qtdVistos * 5), 95); 
+                }
+
+                html += `
+                    <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesSerie(${serie.id})">
+                        ${img}
+                        
+                        <!-- Sombra na base para destacar a barra amarela -->
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
+                        
+                        <!-- Fundo da barra de progresso (Cinza escuro) -->
+                        <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
+                            <!-- Progresso real (Amarelo) -->
+                            <div style="width: ${porcentagem}%; height: 100%; background: #ffcc00;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+
+        return html;
+    };
+
+    // 4. Injeta as categorias na tela na ordem exata
+    listaContainer.innerHTML += gerarHTMLGrupo('ASSISTIR A SEGUIR', assistirASeguir);
+    listaContainer.innerHTML += gerarHTMLGrupo('SEM ASSISTIR HÁ ALGUM TEMPO', semAssistirTempo);
+    listaContainer.innerHTML += gerarHTMLGrupo('NÃO INICIADAS', naoIniciadas);
+    listaContainer.innerHTML += gerarHTMLGrupo('COMPLETAS', completas);
+}
+
+
+
+
+window.toggleDoCartao = function(id, t, e) {
+    let serie = minhasSeries.find(s => s.id === id);
+    if (serie) {
+        if (!serie.episodiosVistos) serie.episodiosVistos = [];
+        const epId = `${t}-${e}`;
+        const index = serie.episodiosVistos.indexOf(epId);
+        
+        if (index > -1) {
+            // Se o episódio já foi assistido, desmarca (remove da lista)
+            serie.episodiosVistos.splice(index, 1);
+        } else {
+            // Se não foi assistido, marca (adiciona na lista)
+            serie.episodiosVistos.push(epId);
+        }
+        
+        salvarSeries(); 
+        atualizarEstatisticas(); 
+        renderizarSeries(); // Recarrega a aba para a série mudar de categoria na mesma hora
+    }
+};
+// ================= 3. RENDERIZAR MEUS FILMES =================
+function renderizarFilmes() {
+    const listaContainer = document.getElementById('lista-filmes');
+    if (!listaContainer) return;
+    listaContainer.innerHTML = '';
+
+    // 1. Desenha o Botão de Alternar no topo direito
+    const iconeBotao = modoExibicaoFilmes === 'lista' ? '⊞' : '☰'; 
+    const corBotao = modoExibicaoFilmes === 'grade' ? '#ffcc00' : '#888';
+    
+    listaContainer.innerHTML += `
+        <div style="display: flex; justify-content: flex-end; padding: 10px 15px;">
+            <button onclick="alternarModoExibicaoFilmes()" style="background: none; border: 1px solid #333; border-radius: 5px; color: ${corBotao}; font-size: 22px; cursor: pointer; padding: 2px 10px; display: flex; align-items: center; justify-content: center; height: 35px;">
+                ${iconeBotao}
+            </button>
+        </div>
+    `;
+
+    if(meusFilmes.length === 0) {
+        listaContainer.innerHTML += '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum filme adicionado.</p>';
+        return;
+    }
+
+    if (modoExibicaoFilmes === 'lista') {
+        // --- MODO LISTA ---
+        meusFilmes.forEach(filme => {
+            const img = filme.posterUrl ? `<img src="${filme.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="background:#333; width:100%; height:100%;"></div>`;
+            const classeVisto = filme.visto ? 'visto' : '';
+
+            listaContainer.innerHTML += `
+                <div class="serie-card" onclick="abrirDetalhesFilme(${filme.id})">
+                    <div class="img-container">${img}</div>
+                    <div class="serie-info">
+                        <span class="serie-tag">${filme.nome} <i>&gt;</i></span>
+                        <span class="serie-ep-title" style="color:#aaa; font-size:12px; margin-top:5px;">Filme</span>
+                    </div>
+                    <div class="serie-action">
+                        <button class="check-btn ${classeVisto}" onclick="event.stopPropagation(); toggleFilmeDireto(${filme.id}, this)">✓</button>
+                    </div>
+                </div>`;
+        });
+    } else {
+        // --- MODO GRADE ---
+        let gradeHtml = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px; margin-bottom: 30px;">';
+        
+        meusFilmes.forEach(filme => {
+            const img = filme.posterUrl 
+                ? `<img src="${filme.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` 
+                : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; text-align:center; font-size:10px; color:#888;">${filme.nome}</div>`;
+            
+            // Fundo verde se o filme estiver como visto
+            const corFundoVisto = filme.visto ? '#78b833' : '#333';
+
+            gradeHtml += `
+                <div style="aspect-ratio: 2/3; position: relative; cursor: pointer; overflow: hidden;" onclick="abrirDetalhesFilme(${filme.id})">
+                    ${img}
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 6px; background: ${corFundoVisto};"></div>
+                </div>
+            `;
+        });
+        gradeHtml += '</div>';
+        listaContainer.innerHTML += gradeHtml;
+    }
+}
+
+
+window.toggleFilmeDireto = function(id, btn) {
+    let filme = meusFilmes.find(f => f.id === id);
+    if (filme) {
+        filme.visto = !filme.visto;
+        salvarFilmes(); atualizarEstatisticas(); renderizarFilmes();
+    }
+};
+
+
+// ================= 3.5. RENDERIZAR PERFIL (SÉRIES, FILMES E LISTAS) =================
+function renderizarPerfilSeries() {
+    const carrosselPerfil = document.getElementById('perfil-series-carrossel');
+    if (!carrosselPerfil) return; 
+    carrosselPerfil.innerHTML = '';
+    if (minhasSeries.length === 0) { carrosselPerfil.innerHTML = '<p style="color:#888; font-size:12px; padding-left:10px;">Nenhuma série adicionada.</p>'; return; }
+
+    minhasSeries.forEach(serie => {
+        const imagemHtml = serie.posterUrl ? `<img src="${serie.posterUrl}">` : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888;">${serie.nome}</div>`;
+        carrosselPerfil.innerHTML += `<div class="poster-item" onclick="abrirDetalhesSerie(${serie.id})">${imagemHtml}</div>`;
+    });
+}
+
+function renderizarPerfilFilmes() {
+    const carrosselFilmes = document.getElementById('perfil-filmes-carrossel');
+    if (!carrosselFilmes) return; 
+    carrosselFilmes.innerHTML = '';
+    if (meusFilmes.length === 0) { carrosselFilmes.innerHTML = '<p style="color:#888; font-size:12px; padding-left:10px;">Nenhum filme adicionado.</p>'; return; }
+
+    meusFilmes.forEach(filme => {
+        const imagemHtml = filme.posterUrl ? `<img src="${filme.posterUrl}">` : `<div style="background:#333; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888;">${filme.nome}</div>`;
+        carrosselFilmes.innerHTML += `<div class="poster-item" onclick="abrirDetalhesFilme(${filme.id})">${imagemHtml}</div>`;
+    });
+}
+
+window.renderizarListasPerfil = function() {
+    const carrossel = document.getElementById('perfil-listas-carrossel');
+    if (!carrossel) return;
+    carrossel.innerHTML = '';
+    
+    if (minhasListas.length === 0) {
+        carrossel.innerHTML = '<p style="color: #888; font-size: 12px; padding-left: 10px;">Crie uma lista para organizar seus favoritos!</p>';
+        return;
+    }
+    
+    minhasListas.forEach(lista => {
+        let capa = '#333';
+        if (lista.itens && lista.itens.length > 0 && lista.itens[0].posterUrl) capa = `url('${lista.itens[0].posterUrl}')`;
+        
+        carrossel.innerHTML += `
+            <div class="poster-item wide" onclick="abrirTelaVerLista(${lista.id})" style="background: ${capa} center/cover; position: relative;">
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7);"></div>
+                <span class="poster-label" style="z-index:2; text-align:center; width:100%; left:0; bottom:40%; font-size:14px;">${lista.nome}</span>
+                <span style="position:absolute; bottom:10px; left:0; width:100%; text-align:center; color:#ccc; font-size:10px; z-index:2;">${lista.itens.length} itens</span>
+            </div>
+        `;
+    });
+};
+
+
+// ================= 4. NAVEGAÇÃO INFERIOR E DE ABAS =================
+const botoesMenu = document.querySelectorAll('.nav-item');
+const telas = {
+    'tela-series': document.getElementById('tela-series'),
+    'tela-filmes': document.getElementById('tela-filmes'),
+    'tela-explorar': document.getElementById('tela-explorar'),
+    'tela-perfil': document.getElementById('tela-perfil')
+};
+
+botoesMenu.forEach(botao => {
+    botao.addEventListener('click', function() {
+        botoesMenu.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        Object.values(telas).forEach(t => t.classList.add('escondido'));
+        telas[this.getAttribute('data-target')].classList.remove('escondido');
+    });
+});
+
+
+// ================= 5. INTEGRAÇÃO TMDB (BUSCA MISTA) =================
+const API_KEY = 'c7c73e6baf0d3719328a6c2c23381897';
+const BASE_URL = 'https://api.themoviedb.org/3';
+const IMG_URL = 'https://image.tmdb.org/t/p/w500';
+let modoBusca = 'tv';
+
+window.mudarModoBusca = function(modo) {
+    modoBusca = modo;
+    document.getElementById('btn-busca-tv').classList.toggle('active', modo === 'tv');
+    document.getElementById('btn-busca-movie').classList.toggle('active', modo === 'movie');
+    document.getElementById('resultados-busca').innerHTML = '';
+    document.getElementById('input-busca').value = '';
+    document.getElementById('input-busca').placeholder = modo === 'tv' ? 'Buscar Séries...' : 'Buscar Filmes...';
+};
+
+document.getElementById('btn-buscar').addEventListener('click', () => executarBusca());
+document.getElementById('input-busca').addEventListener('keypress', (e) => { if (e.key === 'Enter') executarBusca(); });
+
+// Memória para guardar a última pesquisa
+let ultimosResultadosBusca = []; 
+
+async function executarBusca() {
+    const termo = document.getElementById('input-busca').value.trim();
+    if (!termo) return;
+    const container = document.getElementById('resultados-busca');
+    container.innerHTML = '<p style="text-align:center; color:#888; width:100%;">Buscando...</p>';
+    
+    try {
+        const resposta = await fetch(`${BASE_URL}/search/${modoBusca}?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(termo)}`);
+        const dados = await resposta.json();
+        
+        // Salva os dados na memória antes de desenhar a tela
+        ultimosResultadosBusca = dados.results; 
+        renderizarResultadosBusca(ultimosResultadosBusca);
+        
+    } catch (e) { 
+        container.innerHTML = '<p style="color:red; text-align:center; width:100%;">Erro de conexão.</p>'; 
+    }
+}
+
+function renderizarResultadosBusca(resultados) {
+    const container = document.getElementById('resultados-busca');
+    container.innerHTML = '';
+    if (resultados.length === 0) { container.innerHTML = '<p style="text-align:center; color:#888; width:100%;">Nenhum resultado.</p>'; return; }
+
+    resultados.forEach(item => {
+        const posterPath = item.poster_path ? `${IMG_URL}${item.poster_path}` : '';
+        const posterHtml = posterPath ? `<img src="${posterPath}">` : `<div style="width:100%; height:220px; background:#333; display:flex; align-items:center; justify-content:center; font-size:10px; color:#888;">Sem Imagem</div>`;
+        const tituloReal = item.name || item.title;
+        const nomeSeguro = tituloReal.replace(/'/g, "\\'");
+
+        if (modoBusca === 'tv') {
+            // Verifica se a série já está adicionada
+            const jaAdicionada = minhasSeries.some(s => s.id === item.id);
+            const textoBotao = jaAdicionada ? '✓ Adicionada' : '+ Adicionar Série';
+            const estiloBotao = jaAdicionada ? 'background-color: #2ecc71; color: white;' : '';
+
+            container.innerHTML += `
+                <div class="resultado-item" onclick="abrirDetalhesSerie(${item.id})">
+                    ${posterHtml}
+                    <div class="resultado-titulo">${tituloReal}</div>
+                    <button class="btn-add-lista" style="${estiloBotao}" onclick="event.stopPropagation(); alternarSerieBusca(${item.id}, '${nomeSeguro}', '${posterPath}', this)">${textoBotao}</button>
+                </div>`;
+        } else {
+            // Verifica se o filme já está adicionado
+            const jaAdicionado = meusFilmes.some(f => f.id === item.id);
+            const textoBotao = jaAdicionado ? '✓ Adicionado' : '+ Adicionar Filme';
+            const estiloBotao = jaAdicionado ? 'background-color: #2ecc71; color: white;' : '';
+
+            container.innerHTML += `
+                <div class="resultado-item" onclick="abrirDetalhesFilme(${item.id})">
+                    ${posterHtml}
+                    <div class="resultado-titulo">${tituloReal}</div>
+                    <button class="btn-add-lista" style="${estiloBotao}" onclick="event.stopPropagation(); alternarFilmeBusca(${item.id}, '${nomeSeguro}', '${posterPath}', this)">${textoBotao}</button>
+                </div>`;
+        }
+    });
+}
+
+
+// ================= 6. ADICIONAR / REMOVER VIA BUSCA (SEM POP-UPS) =================
+window.alternarSerieBusca = function(id, nome, posterUrl, botao) {
+    const index = minhasSeries.findIndex(s => s.id === id);
+
+    if (index > -1) {
+        // Se já existe, REMOVE
+        minhasSeries.splice(index, 1);
+        botao.innerText = '+ Adicionar Série';
+        botao.style.backgroundColor = ''; // Volta pro CSS padrão (cinza/escuro)
+        botao.style.color = '';
+    } else {
+        // Se não existe, ADICIONA
+        minhasSeries.push({ id, nome: nome.toUpperCase(), posterUrl, episodiosVistos: [], favorito: false });
+        botao.innerText = '✓ Adicionada';
+        botao.style.backgroundColor = '#2ecc71'; // Fica verde
+        botao.style.color = 'white';
+    }
+
+    // Salva tudo e atualiza as outras telas em segundo plano
+    salvarSeries(); 
+    renderizarSeries(); 
+    renderizarPerfilSeries(); 
+    atualizarEstatisticas();
+};
+
+window.alternarFilmeBusca = function(id, nome, posterUrl, botao) {
+    const index = meusFilmes.findIndex(f => f.id === id);
+
+    if (index > -1) {
+        // Se já existe, REMOVE
+        meusFilmes.splice(index, 1);
+        botao.innerText = '+ Adicionar Filme';
+        botao.style.backgroundColor = '';
+        botao.style.color = '';
+    } else {
+        // Se não existe, ADICIONA
+        meusFilmes.push({ id, nome: nome.toUpperCase(), posterUrl, visto: false, favorito: false });
+        botao.innerText = '✓ Adicionado';
+        botao.style.backgroundColor = '#2ecc71';
+        botao.style.color = 'white';
+    }
+
+    // Salva tudo e atualiza as outras telas em segundo plano
+    salvarFilmes(); 
+    renderizarFilmes(); 
+    renderizarPerfilFilmes(); 
+    atualizarEstatisticas();
+};
+
+
+window.abrirDetalhesSerie = async function(serieId) {
+    const tela = document.getElementById('tela-detalhes');
+    const conteudo = document.getElementById('conteudo-detalhes');
+    tela.classList.remove('escondido');
+    conteudo.innerHTML = '<p style="text-align:center; margin-top:50px; color:#888;">Carregando...</p>';
+
+    const serieSalva = minhasSeries.find(s => s.id === serieId);
+
+    try {
+        // Uma chamada só já traz elenco, trailers e recomendações junto com os dados da série
+        const resp = await fetch(`${BASE_URL}/tv/${serieId}?api_key=${API_KEY}&language=pt-BR&append_to_response=credits,videos,recommendations`);
+        const serie = await resp.json();
+        const ano = serie.first_air_date ? serie.first_air_date.split('-')[0] : 'N/A';
+
+        // --- Status traduzido ---
+        const statusMap = {
+            'Ended': 'Finalizada', 'Canceled': 'Cancelada', 'Returning Series': 'Em exibição',
+            'In Production': 'Em produção', 'Planned': 'Planejada', 'Pilot': 'Piloto'
+        };
+        const statusLabel = statusMap[serie.status] || serie.status || '';
+
+        // --- Gêneros ---
+        const generosStr = (serie.genres || []).map(g => g.name).join(', ');
+
+        // --- Progresso (episódios reais assistidos / total, ignorando especiais) ---
+        const totalEpisodios = (serie.seasons || []).filter(t => t.season_number > 0).reduce((soma, t) => soma + t.episode_count, 0);
+        const qtdVistos = serieSalva && serieSalva.episodiosVistos ? serieSalva.episodiosVistos.length : 0;
+        let progLabel = 'Não iniciada';
+        if (qtdVistos > 0 && totalEpisodios > 0 && qtdVistos >= totalEpisodios) progLabel = 'Completa';
+        else if (qtdVistos > 0) progLabel = 'Assistindo';
+        const progPct = totalEpisodios > 0 ? Math.min((qtdVistos / totalEpisodios) * 100, 100) : 0;
+
+        let htmlTemporadas = '';
+        serie.seasons.forEach(temp => {
+            if (temp.season_number > 0) {
+                let classeVisto = '';
+                if (serieSalva && serieSalva.episodiosVistos) {
+                    const eps = serieSalva.episodiosVistos.filter(e => e.startsWith(`${temp.season_number}-`));
+                    if (eps.length === temp.episode_count && temp.episode_count > 0) classeVisto = 'visto';
+                }
+                htmlTemporadas += `
+                    <div class="season-header" onclick="carregarEpisodios(${serie.id}, ${temp.season_number})">
+                        <h3 style="font-size:16px;">Temporada ${temp.season_number}</h3>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:12px; color:#888;">${temp.episode_count} eps</span>
+                            <button class="check-btn ${classeVisto}" style="width:25px; height:25px;" onclick="event.stopPropagation(); marcarTemporadaCompleta(${serie.id}, ${temp.season_number}, this)">✓</button>
+                        </div>
+                    </div>
+                    <div id="eps-temp-${temp.season_number}" class="eps-container escondido"></div>`;
+            }
+        });
+
+        const isFavorito = serieSalva && serieSalva.favorito ? 'ativo' : '';
+        const nomeSeguro = serie.name.replace(/'/g, "\\'");
+        const posterUrlPath = serie.poster_path ? `${IMG_URL}${serie.poster_path}` : '';
+
+        // --- Botão "Seguindo" (uma pílula só, que troca de função conforme o estado) ---
+        const botaoSeguindoHtml = serieSalva
+            ? `<button onclick="removerSerie(${serie.id})" style="background:#2a2a2a; color:#fff; border:1px solid #444; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:6px;">✓ Seguindo</button>`
+            : `<button onclick="adicionarSerieDiretoDetalhes(${serie.id}, '${nomeSeguro}', '${posterUrlPath}')" style="background:#ffcc00; color:#000; border:none; padding:10px 20px; border-radius:20px; font-size:13px; font-weight:bold; cursor:pointer;">+ Seguir</button>`;
+
+        // --- Elenco ---
+        const elenco = (serie.credits && serie.credits.cast) ? serie.credits.cast.slice(0, 12) : [];
+        let htmlElenco = '';
+        if (elenco.length > 0) {
+            htmlElenco = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Elenco</h3>
+                <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px;">
+                    ${elenco.map(ator => `
+                        <div style="flex:0 0 auto; width:70px; text-align:center;">
+                            <div style="width:70px; height:70px; border-radius:50%; overflow:hidden; background:#333;">
+                                ${ator.profile_path ? `<img src="${IMG_URL}${ator.profile_path}" style="width:100%; height:100%; object-fit:cover;">` : ''}
+                            </div>
+                            <p style="font-size:11px; margin:6px 0 0 0; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ator.name}</p>
+                            <p style="font-size:10px; margin:2px 0 0 0; color:#888; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ator.character || ''}</p>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        // --- Trailer (primeiro trailer oficial do YouTube que encontrar) ---
+        const trailer = (serie.videos && serie.videos.results) ? serie.videos.results.find(v => v.site === 'YouTube' && v.type === 'Trailer') : null;
+        let htmlTrailer = '';
+        if (trailer) {
+            htmlTrailer = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Trailer</h3>
+                <div style="position:relative; width:100%; padding-top:56.25%; border-radius:8px; overflow:hidden;">
+                    <iframe src="https://www.youtube.com/embed/${trailer.key}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none;" allowfullscreen></iframe>
+                </div>`;
+        }
+
+        // --- Recomendações ---
+        const recomendacoes = (serie.recommendations && serie.recommendations.results) ? serie.recommendations.results.filter(r => r.poster_path).slice(0, 10) : [];
+        let htmlRecomendacoes = '';
+        if (recomendacoes.length > 0) {
+            htmlRecomendacoes = `
+                <h3 style="font-size:16px; margin:25px 0 12px 0;">Você também pode gostar</h3>
+                <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:8px;">
+                    ${recomendacoes.map(r => `
+                        <div style="flex:0 0 auto; width:100px; cursor:pointer;" onclick="abrirDetalhesSerie(${r.id})">
+                            <img src="${IMG_URL}${r.poster_path}" style="width:100px; height:150px; object-fit:cover; border-radius:6px;">
+                            <p style="font-size:11px; margin:6px 0 0 0; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.name}</p>
+                        </div>
+                    `).join('')}
+                </div>`;
+        }
+
+        conteudo.innerHTML = `
+            <div style="height:230px; background:linear-gradient(to bottom, transparent, #000), url('${IMG_URL}${serie.backdrop_path}') center/cover;"></div>
+            <div style="padding:15px; margin-top:-30px; padding-bottom: 60px;">
+                <h2 style="font-size:24px; font-weight:bold; margin-bottom:6px;">${serie.name}</h2>
+                <p style="color:#aaa; font-size:13px; margin: 0 0 10px 0;">${ano} • ${statusLabel}${generosStr ? ' • ' + generosStr : ''}</p>
+
+                ${serie.vote_average ? `<p style="font-size:13px; color:#ffcc00; margin: 0 0 15px 0;">⭐ ${serie.vote_average.toFixed(1)} <span style="color:#888;">(${serie.vote_count} avaliações · TMDB)</span></p>` : ''}
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                    ${botaoSeguindoHtml}
+                    <div style="display:flex;">
+                        <button class="btn-add-to-list-icon" onclick="abrirModalAddLista(${serie.id}, 'serie', '${posterUrlPath}', '${nomeSeguro}')">☰</button>
+                        <button class="btn-favorito ${isFavorito}" onclick="toggleFavoritoSerie(${serie.id}, this)">♥</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#aaa; margin-bottom:5px;">
+                        <span>${progLabel}</span>
+                        <span>${qtdVistos}/${totalEpisodios}</span>
+                    </div>
+                    <div style="width:100%; height:5px; background:#333; border-radius:3px; overflow:hidden;">
+                        <div style="width:${progPct}%; height:100%; background:#ffcc00;"></div>
+                    </div>
+                </div>
+
+                <div style="display:flex; margin-bottom:20px; border-bottom:1px solid #222;">
+                    <button class="tab-btn active" style="width:50%;" onclick="mudarAba('sobre', this)">SOBRE</button>
+                    <button class="tab-btn" style="width:50%;" onclick="mudarAba('episodios', this)">EPISÓDIOS</button>
+                </div>
+                <div id="aba-sobre">
+                    <p style="font-size:14px; color:#ccc;">${serie.overview || "Sem sinopse."}</p>
+                    ${htmlElenco}
+                    ${htmlTrailer}
+                    ${htmlRecomendacoes}
+                </div>
+                <div id="aba-episodios" class="escondido">${htmlTemporadas}</div>
+            </div>`;
+            
+    } catch(e) { conteudo.innerHTML = '<p>Erro.</p>'; console.error(e); }
+};
+
+
+
+// ================= 8. DETALHES DO FILME =================
+window.abrirDetalhesFilme = async function(filmeId) {
+    const tela = document.getElementById('tela-detalhes');
+    const conteudo = document.getElementById('conteudo-detalhes');
+    tela.classList.remove('escondido');
+    conteudo.innerHTML = '<p style="text-align:center; margin-top:50px; color:#888;">Carregando Filme...</p>';
+
+    const filmeSalvo = meusFilmes.find(f => f.id === filmeId);
+
+    try {
+        const resp = await fetch(`${BASE_URL}/movie/${filmeId}?api_key=${API_KEY}&language=pt-BR`);
+        const filme = await resp.json();
+        const ano = filme.release_date ? filme.release_date.split('-')[0] : 'N/A';
+        const duracao = filme.runtime ? `${filme.runtime} min` : 'N/A';
+
+        const estaVisto = filmeSalvo && filmeSalvo.visto;
+        const btnVistoHtml = `
+            <div style="text-align:center; margin: 20px 0;">
+                <button id="btn-visto-filme" onclick="toggleVistoFilmeModal(${filme.id})" style="background-color: ${estaVisto ? '#78b833' : '#333'}; color: #fff; border: none; padding: 15px 30px; border-radius: 30px; font-weight: bold; font-size: 16px; width: 100%; display:flex; justify-content:center; gap:10px; align-items:center;">
+                    <span style="background:#fff; color:${estaVisto ? '#78b833' : '#000'}; border-radius:50%; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;">✓</span>
+                    ${estaVisto ? 'Assistido' : 'Marcar como visto'}
+                </button>
+            </div>
+        `;
+
+        const isFavoritoFilme = filmeSalvo && filmeSalvo.favorito ? 'ativo' : '';
+        const nomeSeguro = filme.title.replace(/'/g, "\\'");
+        const posterUrlPath = filme.poster_path ? `${IMG_URL}${filme.poster_path}` : '';
+
+        conteudo.innerHTML = `
+            <div style="height:230px; background:linear-gradient(to bottom, transparent, #000), url('${IMG_URL}${filme.backdrop_path}') center/cover;"></div>
+            <div style="padding:15px; margin-top:-30px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:5px;">
+                    <h2 style="font-size:24px; font-weight:bold; width:70%;">${filme.title}</h2>
+                    <div style="display:flex;">
+                        <!-- NOVO BOTÃO DE LISTA -->
+                        <button class="btn-add-to-list-icon" onclick="abrirModalAddLista(${filme.id}, 'filme', '${posterUrlPath}', '${nomeSeguro}')">☰</button>
+                        <button class="btn-favorito ${isFavoritoFilme}" onclick="toggleFavoritoFilme(${filme.id}, this)">♥</button>
+                    </div>
+                </div>
+                <p style="color:#aaa; font-size:13px; margin-bottom:15px;">${ano} • Filme • ${duracao}</p>
+                
+                ${filmeSalvo ? btnVistoHtml : '<p style="color:#ffcc00; text-align:center; font-size:12px; margin:20px 0;">Adicione o filme à sua lista para marcá-lo como visto.</p>'}
+                <h3 style="font-size:16px; margin-bottom:8px; color:#ffcc00;">Sinopse</h3>
+                <p style="font-size:14px; line-height:1.6; color:#ccc; text-align:justify;">${filme.overview || "Sinopse não disponível em português."}</p>
+            </div>`;
+    } catch(e) { conteudo.innerHTML = '<p>Erro.</p>'; }
+};
+
+window.toggleVistoFilmeModal = function(id) {
+    let filme = meusFilmes.find(f => f.id === id);
+    if(filme) {
+        filme.visto = !filme.visto;
+        salvarFilmes(); atualizarEstatisticas(); renderizarFilmes();
+        const btn = document.getElementById('btn-visto-filme');
+        if (filme.visto) {
+            btn.style.backgroundColor = '#78b833';
+            btn.innerHTML = `<span style="background:#fff; color:#78b833; border-radius:50%; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;">✓</span> Assistido`;
+        } else {
+            btn.style.backgroundColor = '#333';
+            btn.innerHTML = `<span style="background:#fff; color:#000; border-radius:50%; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center;">✓</span> Marcar como visto`;
+        }
+    }
+}
+window.fecharDetalhes = function() { document.getElementById('tela-detalhes').classList.add('escondido'); };
+
+
+// ================= 9. REGRAS DE ABAS E EPS (SÉRIES) =================
+window.mudarAba = function(aba, btnClicado) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btnClicado.classList.add('active');
+    document.getElementById('aba-sobre').classList.toggle('escondido', aba !== 'sobre');
+    document.getElementById('aba-episodios').classList.toggle('escondido', aba !== 'episodios');
+};
+
+window.carregarEpisodios = async function(serieId, seasonNum) {
+    const container = document.getElementById(`eps-temp-${seasonNum}`);
+    if (container.innerHTML !== '') return container.classList.toggle('escondido');
+    container.innerHTML = '<p style="text-align:center; padding:10px; color:#888;">Carregando...</p>';
+    container.classList.remove('escondido');
+
+    const serieSalva = minhasSeries.find(s => s.id === serieId);
+    const vistos = (serieSalva && serieSalva.episodiosVistos) ? serieSalva.episodiosVistos : [];
+
+    try {
+        const resp = await fetch(`${BASE_URL}/tv/${serieId}/season/${seasonNum}?api_key=${API_KEY}&language=pt-BR`);
+        const dados = await resp.json();
+        let html = '';
+
+        // Pega a data de hoje e zera as horas para fazer uma comparação exata de dias
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        dados.episodes.forEach(ep => {
+            const img = ep.still_path ? `${IMG_URL}${ep.still_path}` : '';
+            const tForm = String(seasonNum).padStart(2, '0');
+            const eForm = String(ep.episode_number).padStart(2, '0');
+            const classeVisto = vistos.includes(`${seasonNum}-${ep.episode_number}`) ? 'visto' : '';
+            
+            // Lógica para saber quantos dias faltam
+            let diffDias = -1; // Padrão: Episódio já lançado
+            if (ep.air_date) {
+                const dataEp = new Date(ep.air_date + 'T00:00:00');
+                diffDias = Math.floor((dataEp - hoje) / (1000 * 60 * 60 * 24));
+            }
+
+            // Decide o que mostrar do lado direito (Botão ✓ ou Contagem Regressiva)
+            let acaoHtml = '';
+            
+            if (!ep.air_date) {
+                // Se a API ainda não tiver a data definida
+                acaoHtml = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width: 45px;">
+                        <span style="font-size:12px; font-weight:bold; color:#888;">TBA</span>
+                    </div>
+                `;
+            } else if (diffDias > 0) {
+                // Episódio no futuro: Substitui o botão pelos dias restantes!
+                acaoHtml = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width: 45px;">
+                        <span style="font-size:18px; font-weight:bold; line-height: 1; color: #fff;">${diffDias}</span>
+                        <span style="font-size:10px; color:#aaa; letter-spacing: 1px; margin-top: 2px;">DIAS</span>
+                    </div>
+                `;
+            } else {
+                // Episódio já lançado (hoje ou no passado): Mostra o botão normal
+                acaoHtml = `<button class="ep-check ${classeVisto}" data-ep="${ep.episode_number}" onclick="event.stopPropagation(); toggleEpisodioVisto(${serieId}, ${seasonNum}, ${ep.episode_number}, this)">✓</button>`;
+            }
+
+            html += `
+                <div class="ep-card" style="cursor:pointer;" onclick="abrirDetalhesEpisodio(${serieId}, ${seasonNum}, ${ep.episode_number})">
+                    <img src="${img}" class="ep-img" style="background:#333;">
+                    <div class="ep-info">
+                        <div style="font-weight:bold; font-size:14px;">T${tForm} | E${eForm}</div>
+                        <div style="font-size:12px; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${ep.name}</div>
+                    </div>
+                    ${acaoHtml}
+                </div>`;
+        });
+        container.innerHTML = html;
+    } catch(e) { 
+        container.innerHTML = '<p>Erro.</p>'; 
+    }
+};
+
+
+
+window.toggleEpisodioVisto = function(serieId, tempNum, epNum, btn) {
+    let serie = minhasSeries.find(s => s.id === serieId);
+    if (!serie) return alert('Adicione à sua lista primeiro!');
+    if (!serie.episodiosVistos) serie.episodiosVistos = [];
+    const epId = `${tempNum}-${epNum}`;
+    const index = serie.episodiosVistos.indexOf(epId);
+    if (index > -1) { serie.episodiosVistos.splice(index, 1); btn.classList.remove('visto'); } 
+    else { serie.episodiosVistos.push(epId); btn.classList.add('visto'); }
+    salvarSeries(); atualizarEstatisticas(); renderizarSeries();
+};
+
+window.marcarTemporadaCompleta = async function(serieId, tempNum, btnTemp) {
+    let serie = minhasSeries.find(s => s.id === serieId);
+    if (!serie) return alert('Adicione à lista primeiro!');
+    if (!serie.episodiosVistos) serie.episodiosVistos = [];
+
+    const marcando = btnTemp.classList.toggle('visto');
+    const container = document.getElementById(`eps-temp-${tempNum}`);
+    if (container.innerHTML === '') await carregarEpisodios(serieId, tempNum);
+    
+    container.querySelectorAll('.ep-check').forEach(btn => {
+        const epId = `${tempNum}-${btn.getAttribute('data-ep')}`;
+        if (marcando) { btn.classList.add('visto'); if (!serie.episodiosVistos.includes(epId)) serie.episodiosVistos.push(epId); } 
+        else { btn.classList.remove('visto'); const i = serie.episodiosVistos.indexOf(epId); if (i > -1) serie.episodiosVistos.splice(i, 1); }
+    });
+    salvarSeries(); atualizarEstatisticas(); renderizarSeries();
+};
+
+
+// ================= 10. ESTATÍSTICAS =================
+window.abrirEstatisticas = function() { document.getElementById('tela-estatisticas').classList.remove('escondido'); atualizarEstatisticas(); };
+window.fecharEstatisticas = function() { document.getElementById('tela-estatisticas').classList.add('escondido'); };
+window.atualizarEstatisticas = function() {
+    let totalEpsVistos = 0;
+    minhasSeries.forEach(s => { if (s.episodiosVistos) totalEpsVistos += s.episodiosVistos.length; });
+    let totalFilmesVistos = meusFilmes.filter(f => f.visto).length;
+    let totalMinutos = (totalEpsVistos * 45) + (totalFilmesVistos * 120);
+    let meses = Math.floor(totalMinutos / 43200); let restoMinutos = totalMinutos % 43200;
+    let dias = Math.floor(restoMinutos / 1440); restoMinutos = restoMinutos % 1440;
+    let horas = Math.floor(restoMinutos / 60);
+
+    const elMeses = document.getElementById('stat-meses'); if (elMeses) elMeses.innerText = meses;
+    const elDias = document.getElementById('stat-dias'); if (elDias) elDias.innerText = dias;
+    const elHoras = document.getElementById('stat-horas'); if (elHoras) elHoras.innerText = horas;
+    const elTotalEps = document.getElementById('stat-total-eps'); if (elTotalEps) elTotalEps.innerText = totalEpsVistos;
+    const elDetEps = document.getElementById('det-total-eps'); if(elDetEps) elDetEps.innerText = totalEpsVistos;
+    const elDetSeries = document.getElementById('det-total-series'); if(elDetSeries) elDetSeries.innerText = minhasSeries.length;
+    const elDetFilmes = document.getElementById('det-total-filmes'); if(elDetFilmes) elDetFilmes.innerText = meusFilmes.length;
+};
+
+
+// ================= 11. FAVORITOS (SÉRIES E FILMES) =================
+window.toggleFavoritoSerie = function(id, btn) {
+    let serie = minhasSeries.find(s => s.id === id);
+    if (!serie) return alert('Você precisa adicionar a série à sua lista primeiro!');
+    serie.favorito = !serie.favorito; btn.classList.toggle('ativo'); salvarSeries(); renderizarFavoritos();
+};
+window.toggleFavoritoFilme = function(id, btn) {
+    let filme = meusFilmes.find(f => f.id === id);
+    if (!filme) return alert('Você precisa adicionar o filme à sua lista primeiro!');
+    filme.favorito = !filme.favorito; btn.classList.toggle('ativo'); salvarFilmes(); renderizarFavoritos();
+};
+window.renderizarFavoritos = function() {
+    const carrosselSeries = document.getElementById('perfil-series-favoritas-carrossel');
+    const carrosselFilmes = document.getElementById('perfil-filmes-favoritos-carrossel');
+    if (!carrosselSeries || !carrosselFilmes) return;
+
+    carrosselSeries.innerHTML = ''; const seriesFav = minhasSeries.filter(s => s.favorito);
+    if (seriesFav.length === 0) { carrosselSeries.innerHTML = '<p style="color:#888; font-size:12px; padding-left:10px;">Nenhuma série favorita.</p>'; } 
+    else { seriesFav.forEach(serie => { const img = serie.posterUrl ? `<img src="${serie.posterUrl}">` : `<div style="background:#333;width:100%;height:100%;"></div>`; carrosselSeries.innerHTML += `<div class="poster-item" onclick="abrirDetalhesSerie(${serie.id})">${img}</div>`; }); }
+
+    carrosselFilmes.innerHTML = ''; const filmesFav = meusFilmes.filter(f => f.favorito);
+    if (filmesFav.length === 0) { carrosselFilmes.innerHTML = '<p style="color:#888; font-size:12px; padding-left:10px;">Nenhum filme favorito.</p>'; } 
+    else { filmesFav.forEach(filme => { const img = filme.posterUrl ? `<img src="${filme.posterUrl}">` : `<div style="background:#333;width:100%;height:100%;"></div>`; carrosselFilmes.innerHTML += `<div class="poster-item" onclick="abrirDetalhesFilme(${filme.id})">${img}</div>`; }); }
+};
+
+
+// ================= 12. LÓGICA DAS LISTAS PERSONALIZADAS =================
+window.abrirModalCriarLista = function() {
+    document.getElementById('modal-criar-lista').classList.remove('escondido');
+    document.getElementById('input-nome-lista').value = '';
+};
+window.fecharModalCriarLista = function() { document.getElementById('modal-criar-lista').classList.add('escondido'); };
+
+window.salvarNovaLista = function() {
+    const nome = document.getElementById('input-nome-lista').value.trim();
+    if(!nome) return alert('Digite um nome para a lista!');
+    minhasListas.push({ id: Date.now(), nome: nome.toUpperCase(), itens: [] });
+    salvarListasCus(); renderizarListasPerfil(); fecharModalCriarLista();
+};
+
+window.abrirModalAddLista = function(itemId, tipo, posterUrl, nome) {
+    if(minhasListas.length === 0) { alert('Vá ao seu Perfil e crie uma lista primeiro!'); return; }
+    document.getElementById('modal-add-lista').classList.remove('escondido');
+    const divOpcoes = document.getElementById('opcoes-listas-add');
+    divOpcoes.innerHTML = '';
+    minhasListas.forEach(lista => {
+        divOpcoes.innerHTML += `<button class="btn-escolher-lista" onclick="addItemNaLista(${lista.id}, ${itemId}, '${tipo}', '${posterUrl}', '${nome}')">${lista.nome}</button>`;
+    });
+};
+window.fecharModalAddLista = function() { document.getElementById('modal-add-lista').classList.add('escondido'); };
+
+window.addItemNaLista = function(listaId, itemId, tipo, posterUrl, nome) {
+    let lista = minhasListas.find(l => l.id === listaId);
+    if(lista) {
+        if(lista.itens.find(i => i.id === itemId && i.tipo === tipo)) {
+            alert('Este item já está nessa lista!');
+        } else {
+            lista.itens.push({ id: itemId, tipo: tipo, posterUrl: posterUrl, nome: nome });
+            salvarListasCus(); renderizarListasPerfil();
+            alert(`Adicionado à lista ${lista.nome}!`);
+            fecharModalAddLista();
+        }
+    }
+};
+// Variável para guardar qual lista estamos visualizando no momento
+let listaAtualId = null; 
+
+window.abrirTelaVerLista = function(id) {
+    listaAtualId = id; // Salvamos o ID da lista clicada!
+    
+    const tela = document.getElementById('tela-ver-lista');
+    if(tela) tela.classList.remove('escondido');
+    
+    const lista = minhasListas.find(l => l.id === id);
     if (lista) {
         document.getElementById('titulo-ver-lista').innerText = lista.nome;
         // Aqui também iria a sua lógica de desenhar os posteres na div #conteudo-ver-lista
