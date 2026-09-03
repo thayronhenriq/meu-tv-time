@@ -309,17 +309,7 @@
                     <button onclick="excluirListaAtual()" style="width:100%; text-align:left; background:none; border:none; color:#ff453a; padding:6px 0; font-size:14px; cursor:pointer;">Excluir lista</button>
                     
                     <hr style="border:0; height:1px; background:#2c2c2e; margin:8px 0;">
-                    
-                    <span style="font-size:11px; color:#8e8e93; font-weight:bold;">ORDENAR POR</span>
-                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:6px; cursor:pointer;">
-                        <input type="radio" name="sort" value="activity" checked onchange="ordenarLista('activity')"> Última atividade
-                    </label>
-                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:4px; cursor:pointer;">
-                        <input type="radio" name="sort" value="recent" onchange="ordenarLista('recent')"> Adicionado por último
-                    </label>
-                    <label style="display:flex; align-items:center; gap:8px; color:#fff; font-size:13px; margin-top:4px; cursor:pointer;">
-                        <input type="radio" name="sort" value="alpha" onchange="ordenarLista('alpha')"> Alfabética
-                    </label>
+            
                 </div>
             </div>
         </div>
@@ -332,6 +322,52 @@
             <!-- Pôsteres injetados via JS -->
         </div>
     </div>
+
+<!-- ================= BOTÃO FLUTUANTE DE FILTROS ================= -->
+    <button id="btn-flutuante-filtros-lista" onclick="abrirModalFiltrosLista()" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #ffcc00; color: #000; border: none; border-radius: 25px; padding: 10px 20px; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 100; cursor: pointer;">
+        <span style="width: 8px; height: 8px; background-color: #5b42f3; border-radius: 50%; display: inline-block;"></span>
+        FILTROS
+    </button>
+
+    <!-- ================= MODAL DE FILTROS (BOTTOM SHEET) ================= -->
+    <div id="modal-filtros-lista" class="escondido" onclick="fecharModalFiltrosLista(event)" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 200; display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; transition: opacity 0.3s; pointer-events: none;">
+        
+        <div style="background-color: #1a1a1a; width: 100%; border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 25px 20px; box-sizing: border-box; color: #fff; transform: translateY(100%); transition: transform 0.3s;" id="modal-filtros-lista-conteudo">
+            
+            <!-- Ordem -->
+            <h3 style="margin: 0 0 15px 0; font-size: 16px;">Ordenar por</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 5px;">
+                <button id="pill-ordem-assistidos" onclick="selecionarOrdemListaTemp('assistidos')" style="background: #333; border: none; color: #ccc; padding: 8px 16px; border-radius: 20px; white-space: nowrap; cursor: pointer;">Últimos assistidos</button>
+                <button id="pill-ordem-adicionados" onclick="selecionarOrdemListaTemp('adicionados')" style="background: #555; border: none; color: #fff; padding: 8px 16px; border-radius: 20px; white-space: nowrap; cursor: pointer;">Últimos adicionados</button>
+                <button id="pill-ordem-alfabetica" onclick="selecionarOrdemListaTemp('alfabetica')" style="background: #333; border: none; color: #ccc; padding: 8px 16px; border-radius: 20px; white-space: nowrap; cursor: pointer;">Alfabética</button>
+            </div>
+
+            <!-- Progresso -->
+            <h3 style="margin: 0 0 15px 0; font-size: 16px;">Progress</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px;">
+                <div onclick="selecionarProgressoListaTemp('tudo')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 0;">
+                    <span style="font-size: 15px;">Tudo</span>
+                    <div id="check-progresso-tudo"></div>
+                </div>
+                <div onclick="selecionarProgressoListaTemp('assistindo')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 0;">
+                    <span style="font-size: 15px;">Assistindo</span>
+                    <div id="check-progresso-assistindo"></div>
+                </div>
+                <div onclick="selecionarProgressoListaTemp('nao-comecei')" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 0;">
+                    <span style="font-size: 15px;">Não comecei</span>
+                    <div id="check-progresso-nao-comecei"></div>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="display: flex; gap: 10px;">
+                <button onclick="redefinirFiltrosLista()" style="flex: 1; background: transparent; border: 1px solid #555; color: #aaa; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer;">REDEFINIR</button>
+                <button onclick="aplicarFiltrosLista()" style="flex: 1; background: #ffcc00; border: none; color: #000; padding: 12px; border-radius: 25px; font-weight: bold; cursor: pointer;">APLICAR</button>
+            </div>
+            
+        </div>
+    </div>
+    
 </div>
 <div id="modal-busca-add-lista" class="escondido" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2500; display:flex; flex-direction:column; align-items:center; padding-top:50px;">
     <div style="width:90%; max-width:500px; display:flex; gap:10px;">
