@@ -1163,13 +1163,26 @@ window.addItemNaLista = function(listaId, itemId, tipo, posterUrl, nome) {
 // Variável para guardar qual lista estamos visualizando no momento
 let listaAtualId = null; 
 
+// ================= VARIÁVEIS DE FILTRO =================
+// Guarda a preferência de filtro da lista atual
+let objFiltroLista = {
+    ordem: 'recente', // Opções: 'recente', 'alfabetica', 'progresso'
+    apenasAssistindo: false
+};
+
+// ================= ABRIR TELA DE LISTA =================
 window.abrirTelaVerLista = function(id) {
-    listaAtualId = id; // Salvamos o ID da lista clicada!
-    
+    listaAtualId = id; 
     const tela = document.getElementById('tela-ver-lista');
     if(tela) tela.classList.remove('escondido');
     
-    const lista = minhasListas.find(l => l.id === id);
+    // Dispara a nova função que calcula os filtros e desenha o grid
+    renderizarConteudoLista();
+};
+
+// ================= DESENHAR O MOSAICO COM FILTROS =================
+window.renderizarConteudoLista = function() {
+    const lista = minhasListas.find(l => l.id === listaAtualId);
     if (!lista) return;
 
     document.getElementById('titulo-ver-lista').innerText = lista.nome;
@@ -1179,25 +1192,126 @@ window.abrirTelaVerLista = function(id) {
     container.innerHTML = '';
 
     if (!lista.itens || lista.itens.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#888; grid-column: 1 / -1; margin-top:30px;">Lista vazia. Toque no + para adicionar séries ou filmes.</p>';
+        container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Lista vazia. Toque no + para adicionar séries ou filmes.</p>';
         return;
     }
 
-    lista.itens.forEach(item => {
-        // Aceita tanto "nome" quanto "titulo", já que os dois nomes de campo foram usados em partes diferentes do app
+    // 1. CRUZAMENTO DE DADOS: Puxar o progresso real de cada série/filme
+    let itensComDados = lista.itens.map(item => {
+        let porcentagem = 0;
+        
+        if (item.tipo === 'serie') {
+            const serieSalva = minhasSeries.find(s => s.id === item.id);
+            if (serieSalva && serieSalva.episodiosVistos) {
+                const qtdVistos = serieSalva.episodiosVistos.length;
+                let totalEps = 0;
+                
+                // Tenta pegar o total real se já estiver sincronizado com o TMDB
+                if (serieSalva.seasons) {
+                    totalEps = serieSalva.seasons.filter(t => t.season_number > 0).reduce((soma, t) => soma + t.episode_count, 0);
+                }
+                
+                if (totalEps > 0) {
+                    porcentagem = Math.min((qtdVistos / totalEps) * 100, 100);
+                } else if (qtdVistos > 0) {
+                    // Cálculo visual se o TMDB não estiver carregado (igual na tela inicial)
+                    porcentagem = Math.min((qtdVistos * 5), 95); 
+                }
+            }
+        } else if (item.tipo === 'filme') {
+            const filmeSalvo = meusFilmes.find(f => f.id === item.id);
+            if (filmeSalvo && filmeSalvo.visto) porcentagem = 100;
+        }
+        
+        // Retorna o item original + a porcentagem atualizada
+        return { ...item, porcentagem };
+    });
+
+    // 2. APLICAR OS FILTROS DO USUÁRIO
+    // Filtro: Apenas assistindo (Progresso > 0 e < 100)
+    if (objFiltroLista.apenasAssistindo) {
+        itensComDados = itensComDados.filter(i => i.porcentagem > 0 && i.porcentagem < 100);
+    }
+
+    // Ordenação
+    if (objFiltroLista.ordem === 'alfabetica') {
+        itensComDados.sort((a, b) => (a.nome || a.titulo || '').localeCompare(b.nome || b.titulo || ''));
+    } else if (objFiltroLista.ordem === 'progresso') {
+        // Do maior progresso para o menor
+        itensComDados.sort((a, b) => b.porcentagem - a.porcentagem);
+    } else {
+        // 'recente' - Mantém a ordem original do array de trás pra frente
+        itensComDados.reverse();
+    }
+
+    // 3. MONTAR O HTML DOS FILTROS (Botões no topo)
+    const btnAlfabetica = objFiltroLista.ordem === 'alfabetica' ? 'btn-sort active' : 'btn-sort';
+    const btnRecente = objFiltroLista.ordem === 'recente' ? 'btn-sort active' : 'btn-sort';
+    const btnProgresso = objFiltroLista.ordem === 'progresso' ? 'btn-sort active' : 'btn-sort';
+    
+    const cssCheck = objFiltroLista.apenasAssistindo ? 'color:#ffcc00; font-weight:bold;' : 'color:#ddd;';
+    const radioAtivo = objFiltroLista.apenasAssistindo ? 'ativo' : '';
+
+    const htmlFiltros = `
+        <div style="padding: 10px 15px; margin-bottom: 10px; border-bottom: 1px solid #222;">
+            <div class="carrossel-posters" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:8px;">
+                <button class="${btnRecente}" onclick="mudarFiltroLista('recente')">Últimos Adicionados</button>
+                <button class="${btnAlfabetica}" onclick="mudarFiltroLista('alfabetica')">Alfabética</button>
+                <button class="${btnProgresso}" onclick="mudarFiltroLista('progresso')">Mais Vistos</button>
+            </div>
+            
+            <div class="filter-row" onclick="toggleApenasAssistindoLista()" style="border-bottom:none; padding:10px 0 5px 0;">
+                <span style="${cssCheck}">Mostrar apenas "Assistindo"</span>
+                <div class="radio-btn ${radioAtivo}">✓</div>
+            </div>
+        </div>
+    `;
+
+    // 4. MONTAR O MOSAICO COM O GRID
+    let htmlGrade = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px 30px 15px;">';
+
+    itensComDados.forEach(item => {
         const titulo = item.nome || item.titulo || 'Sem título';
-        const tituloSeguro = titulo.replace(/'/g, "\\'");
         const abrirDetalhe = item.tipo === 'filme' ? `abrirDetalhesFilme(${item.id})` : `abrirDetalhesSerie(${item.id})`;
 
-        container.innerHTML += `
+        // Barra amarela só aparece se houver progresso
+        const barraDeProgresso = item.porcentagem > 0 ? `
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
+                <div style="width: ${item.porcentagem}%; height: 100%; background: #ffcc00;"></div>
+            </div>
+        ` : '';
+
+        htmlGrade += `
             <div style="position:relative;">
-                <div onclick="${abrirDetalhe}" style="cursor:pointer; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#333;">
+                <div onclick="${abrirDetalhe}" style="cursor:pointer; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#333; position:relative;">
                     ${item.posterUrl ? `<img src="${item.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:11px; color:#888; text-align:center; padding:5px;">${titulo}</div>`}
+                    ${barraDeProgresso}
                 </div>
-                <p style="font-size:12px; color:#fff; margin:6px 0 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${titulo}</p>
+                <p style="font-size:12px; color:#fff; margin:6px 0 0 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;">${titulo}</p>
                 <button onclick="event.stopPropagation(); removerItemLista(${lista.id}, ${item.id}, '${item.tipo}')" style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:50%; width:24px; height:24px; font-size:14px; cursor:pointer; line-height:1;">✕</button>
             </div>`;
     });
+    
+    htmlGrade += '</div>';
+
+    if (itensComDados.length === 0 && objFiltroLista.apenasAssistindo) {
+        htmlGrade = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhuma série em andamento nesta lista.</p>';
+    }
+
+    // Injeta tudo de uma vez na tela
+    container.innerHTML = htmlFiltros + htmlGrade;
+};
+
+// ================= FUNÇÕES DE CLIQUE DOS FILTROS =================
+window.mudarFiltroLista = function(ordemClicada) {
+    objFiltroLista.ordem = ordemClicada;
+    renderizarConteudoLista();
+};
+
+window.toggleApenasAssistindoLista = function() {
+    objFiltroLista.apenasAssistindo = !objFiltroLista.apenasAssistindo;
+    renderizarConteudoLista();
 };
 window.fecharTelaVerLista = function() { document.getElementById('tela-ver-lista').classList.add('escondido'); };
 
