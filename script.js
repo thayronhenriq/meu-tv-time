@@ -1170,51 +1170,131 @@ let objFiltroLista = {
     apenasAssistindo: false
 };
 
+// ================= VARIÁVEIS DE FILTRO =================
+// Filtro real aplicado na lista
+let objFiltroLista = { ordem: 'adicionados', progresso: 'tudo' };
+// Filtro temporário (enquanto o modal está aberto, antes de clicar em Aplicar)
+let tempFiltroLista = { ordem: 'adicionados', progresso: 'tudo' }; 
+
 // ================= ABRIR TELA DE LISTA =================
 window.abrirTelaVerLista = function(id) {
     listaAtualId = id; 
     const tela = document.getElementById('tela-ver-lista');
     if(tela) tela.classList.remove('escondido');
     
-    // Dispara a nova função que calcula os filtros e desenha o grid
     renderizarConteudoLista();
 };
 
-// ================= DESENHAR O MOSAICO COM FILTROS =================
+// ================= LÓGICA DO MODAL DE FILTROS =================
+window.abrirModalFiltrosLista = function() {
+    tempFiltroLista = { ...objFiltroLista }; // Puxa o estado atual
+    atualizarVisualModalFiltros();
+    
+    const modal = document.getElementById('modal-filtros-lista');
+    const modalConteudo = document.getElementById('modal-filtros-lista-conteudo');
+    
+    modal.classList.remove('escondido');
+    modal.style.pointerEvents = 'auto';
+    
+    // Efeito suave de entrada
+    setTimeout(() => {
+        modal.style.opacity = '1';
+        modalConteudo.style.transform = 'translateY(0)';
+    }, 10);
+};
+
+window.fecharModalFiltrosLista = function(event) {
+    // Só fecha se clicar no fundo escuro (fora da janela)
+    if (event && event.target.id !== 'modal-filtros-lista') return;
+    
+    const modal = document.getElementById('modal-filtros-lista');
+    const modalConteudo = document.getElementById('modal-filtros-lista-conteudo');
+    
+    modal.style.opacity = '0';
+    modalConteudo.style.transform = 'translateY(100%)';
+    modal.style.pointerEvents = 'none';
+    
+    setTimeout(() => { modal.classList.add('escondido'); }, 300);
+};
+
+window.selecionarOrdemListaTemp = function(ordem) {
+    tempFiltroLista.ordem = ordem;
+    atualizarVisualModalFiltros();
+};
+
+window.selecionarProgressoListaTemp = function(progresso) {
+    tempFiltroLista.progresso = progresso;
+    atualizarVisualModalFiltros();
+};
+
+window.atualizarVisualModalFiltros = function() {
+    // Atualiza as pílulas de Ordem
+    const pils = ['assistidos', 'adicionados', 'alfabetica'];
+    pils.forEach(o => {
+        const btn = document.getElementById(`pill-ordem-${o}`);
+        if(btn) {
+            if(tempFiltroLista.ordem === o) {
+                btn.style.background = '#555';
+                btn.style.color = '#fff';
+            } else {
+                btn.style.background = '#333';
+                btn.style.color = '#ccc';
+            }
+        }
+    });
+
+    // Atualiza os círculos de Progresso (estilo TV Time)
+    const progs = ['tudo', 'assistindo', 'nao-comecei'];
+    const htmlAtivo = `<div style="background-color: #ffcc00; color: #000; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;">✓</div>`;
+    const htmlInativo = `<div style="width: 22px; height: 22px; border: 2px solid #555; border-radius: 50%; box-sizing: border-box;"></div>`;
+
+    progs.forEach(p => {
+        const check = document.getElementById(`check-progresso-${p}`);
+        if(check) {
+            check.innerHTML = (tempFiltroLista.progresso === p) ? htmlAtivo : htmlInativo;
+        }
+    });
+};
+
+window.redefinirFiltrosLista = function() {
+    tempFiltroLista = { ordem: 'adicionados', progresso: 'tudo' };
+    atualizarVisualModalFiltros();
+};
+
+window.aplicarFiltrosLista = function() {
+    objFiltroLista = { ...tempFiltroLista };
+    fecharModalFiltrosLista({ target: { id: 'modal-filtros-lista' } }); // Força o fechamento
+    renderizarConteudoLista(); 
+};
+
+// ================= DESENHAR O MOSAICO =================
 window.renderizarConteudoLista = function() {
     const lista = minhasListas.find(l => l.id === listaAtualId);
     if (!lista) return;
 
     document.getElementById('titulo-ver-lista').innerText = lista.nome;
-
     const container = document.getElementById('conteudo-ver-lista');
     if (!container) return;
-    container.innerHTML = '';
 
     if (!lista.itens || lista.itens.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#888; margin-top:30px;">Lista vazia. Toque no + para adicionar séries ou filmes.</p>';
         return;
     }
 
-    // 1. CRUZAMENTO DE DADOS: Puxar o progresso real de cada série/filme
+    // 1. CRUZAR DADOS DE PROGRESSO
     let itensComDados = lista.itens.map(item => {
         let porcentagem = 0;
-        
         if (item.tipo === 'serie') {
             const serieSalva = minhasSeries.find(s => s.id === item.id);
             if (serieSalva && serieSalva.episodiosVistos) {
                 const qtdVistos = serieSalva.episodiosVistos.length;
                 let totalEps = 0;
-                
-                // Tenta pegar o total real se já estiver sincronizado com o TMDB
                 if (serieSalva.seasons) {
                     totalEps = serieSalva.seasons.filter(t => t.season_number > 0).reduce((soma, t) => soma + t.episode_count, 0);
                 }
-                
                 if (totalEps > 0) {
                     porcentagem = Math.min((qtdVistos / totalEps) * 100, 100);
                 } else if (qtdVistos > 0) {
-                    // Cálculo visual se o TMDB não estiver carregado (igual na tela inicial)
                     porcentagem = Math.min((qtdVistos * 5), 95); 
                 }
             }
@@ -1222,59 +1302,34 @@ window.renderizarConteudoLista = function() {
             const filmeSalvo = meusFilmes.find(f => f.id === item.id);
             if (filmeSalvo && filmeSalvo.visto) porcentagem = 100;
         }
-        
-        // Retorna o item original + a porcentagem atualizada
         return { ...item, porcentagem };
     });
 
-    // 2. APLICAR OS FILTROS DO USUÁRIO
-    // Filtro: Apenas assistindo (Progresso > 0 e < 100)
-    if (objFiltroLista.apenasAssistindo) {
+    // 2. APLICAR FILTRO DE PROGRESSO
+    if (objFiltroLista.progresso === 'assistindo') {
         itensComDados = itensComDados.filter(i => i.porcentagem > 0 && i.porcentagem < 100);
+    } else if (objFiltroLista.progresso === 'nao-comecei') {
+        itensComDados = itensComDados.filter(i => i.porcentagem === 0);
     }
 
-    // Ordenação
+    // 3. APLICAR ORDENAÇÃO
     if (objFiltroLista.ordem === 'alfabetica') {
         itensComDados.sort((a, b) => (a.nome || a.titulo || '').localeCompare(b.nome || b.titulo || ''));
-    } else if (objFiltroLista.ordem === 'progresso') {
-        // Do maior progresso para o menor
+    } else if (objFiltroLista.ordem === 'assistidos') {
+        // Ordena por maior progresso
         itensComDados.sort((a, b) => b.porcentagem - a.porcentagem);
     } else {
-        // 'recente' - Mantém a ordem original do array de trás pra frente
+        // 'adicionados'
         itensComDados.reverse();
     }
 
-    // 3. MONTAR O HTML DOS FILTROS (Botões no topo)
-    const btnAlfabetica = objFiltroLista.ordem === 'alfabetica' ? 'btn-sort active' : 'btn-sort';
-    const btnRecente = objFiltroLista.ordem === 'recente' ? 'btn-sort active' : 'btn-sort';
-    const btnProgresso = objFiltroLista.ordem === 'progresso' ? 'btn-sort active' : 'btn-sort';
-    
-    const cssCheck = objFiltroLista.apenasAssistindo ? 'color:#ffcc00; font-weight:bold;' : 'color:#ddd;';
-    const radioAtivo = objFiltroLista.apenasAssistindo ? 'ativo' : '';
-
-    const htmlFiltros = `
-        <div style="padding: 10px 15px; margin-bottom: 10px; border-bottom: 1px solid #222;">
-            <div class="carrossel-posters" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:8px;">
-                <button class="${btnRecente}" onclick="mudarFiltroLista('recente')">Últimos Adicionados</button>
-                <button class="${btnAlfabetica}" onclick="mudarFiltroLista('alfabetica')">Alfabética</button>
-                <button class="${btnProgresso}" onclick="mudarFiltroLista('progresso')">Mais Vistos</button>
-            </div>
-            
-            <div class="filter-row" onclick="toggleApenasAssistindoLista()" style="border-bottom:none; padding:10px 0 5px 0;">
-                <span style="${cssCheck}">Mostrar apenas "Assistindo"</span>
-                <div class="radio-btn ${radioAtivo}">✓</div>
-            </div>
-        </div>
-    `;
-
-    // 4. MONTAR O MOSAICO COM O GRID
-    let htmlGrade = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 15px 30px 15px;">';
+    // 4. MONTAR O MOSAICO
+    let htmlGrade = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px 15px 80px 15px;">';
 
     itensComDados.forEach(item => {
         const titulo = item.nome || item.titulo || 'Sem título';
         const abrirDetalhe = item.tipo === 'filme' ? `abrirDetalhesFilme(${item.id})` : `abrirDetalhesSerie(${item.id})`;
 
-        // Barra amarela só aparece se houver progresso
         const barraDeProgresso = item.porcentagem > 0 ? `
             <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
             <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #333;">
@@ -1295,24 +1350,13 @@ window.renderizarConteudoLista = function() {
     
     htmlGrade += '</div>';
 
-    if (itensComDados.length === 0 && objFiltroLista.apenasAssistindo) {
-        htmlGrade = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhuma série em andamento nesta lista.</p>';
+    if (itensComDados.length === 0) {
+        htmlGrade = '<p style="text-align:center; color:#888; margin-top:30px;">Nenhum título encontrado com este filtro.</p>';
     }
 
-    // Injeta tudo de uma vez na tela
-    container.innerHTML = htmlFiltros + htmlGrade;
+    container.innerHTML = htmlGrade; // Não inserimos mais os botões fixos no topo, apenas o grid!
 };
-
-// ================= FUNÇÕES DE CLIQUE DOS FILTROS =================
-window.mudarFiltroLista = function(ordemClicada) {
-    objFiltroLista.ordem = ordemClicada;
-    renderizarConteudoLista();
-};
-
-window.toggleApenasAssistindoLista = function() {
-    objFiltroLista.apenasAssistindo = !objFiltroLista.apenasAssistindo;
-    renderizarConteudoLista();
-};window.fecharTelaVerLista = function() { document.getElementById('tela-ver-lista').classList.add('escondido'); };
+window.fecharTelaVerLista = function() { document.getElementById('tela-ver-lista').classList.add('escondido'); };
 
 window.removerItemLista = function(listaId, itemId, tipo) {
     if(!confirm('Remover este item da lista?')) return;
