@@ -1181,7 +1181,7 @@ window.abrirTelaVerLista = function(id) {
 // ================= LÓGICA DO MODAL DE FILTROS =================
 window.abrirModalFiltrosLista = function() {
     tempFiltroLista = { ...objFiltroLista }; // Puxa o estado atual
-    atualizarVisualModalFiltros();
+    atualizarVisualModalFiltrosLista();
     
     const modal = document.getElementById('modal-filtros-lista');
     const modalConteudo = document.getElementById('modal-filtros-lista-conteudo');
@@ -1212,15 +1212,15 @@ window.fecharModalFiltrosLista = function(event) {
 
 window.selecionarOrdemListaTemp = function(ordem) {
     tempFiltroLista.ordem = ordem;
-    atualizarVisualModalFiltros();
+    atualizarVisualModalFiltrosLista();
 };
 
 window.selecionarProgressoListaTemp = function(progresso) {
     tempFiltroLista.progresso = progresso;
-    atualizarVisualModalFiltros();
+    atualizarVisualModalFiltrosLista();
 };
 
-window.atualizarVisualModalFiltros = function() {
+window.atualizarVisualModalFiltrosLista = function() {
     // Atualiza as pílulas de Ordem
     const pils = ['assistidos', 'adicionados', 'alfabetica'];
     pils.forEach(o => {
@@ -1251,7 +1251,7 @@ window.atualizarVisualModalFiltros = function() {
 
 window.redefinirFiltrosLista = function() {
     tempFiltroLista = { ordem: 'adicionados', progresso: 'tudo' };
-    atualizarVisualModalFiltros();
+    atualizarVisualModalFiltrosLista();
 };
 
 window.aplicarFiltrosLista = function() {
@@ -1317,7 +1317,7 @@ window.renderizarConteudoLista = function() {
     }
 
     // 4. MONTAR O MOSAICO
-    let htmlGrade = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px 15px 80px 15px;">';
+    let htmlGrade = '<div style="width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px 15px 80px 15px;">';
 
     itensComDados.forEach(item => {
         const titulo = item.nome || item.titulo || 'Sem título';
@@ -1331,8 +1331,8 @@ window.renderizarConteudoLista = function() {
         ` : '';
 
         htmlGrade += `
-            <div style="position:relative;">
-                <div onclick="${abrirDetalhe}" style="cursor:pointer; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#333; position:relative;">
+            <div style="position:relative; min-width:0; width:100%;">
+                <div onclick="${abrirDetalhe}" style="cursor:pointer; width:100%; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#333; position:relative;">
                     ${item.posterUrl ? `<img src="${item.posterUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:11px; color:#888; text-align:center; padding:5px;">${titulo}</div>`}
                     ${barraDeProgresso}
                 </div>
