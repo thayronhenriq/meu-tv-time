@@ -1164,13 +1164,6 @@ window.addItemNaLista = function(listaId, itemId, tipo, posterUrl, nome) {
 let listaAtualId = null; 
 
 // ================= VARIÁVEIS DE FILTRO =================
-// Guarda a preferência de filtro da lista atual
-let objFiltroLista = {
-    ordem: 'recente', // Opções: 'recente', 'alfabetica', 'progresso'
-    apenasAssistindo: false
-};
-
-// ================= VARIÁVEIS DE FILTRO =================
 // Filtro real aplicado na lista
 let objFiltroLista = { ordem: 'adicionados', progresso: 'tudo' };
 // Filtro temporário (enquanto o modal está aberto, antes de clicar em Aplicar)
